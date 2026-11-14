@@ -346,7 +346,8 @@ fn main() {
                         if let Some((elo0, elo1)) = sprt {
                             let done = finished_pairs(&results);
                             if llr(&done, elo0, elo1).abs() >= SPRT_BOUND && done.len() >= 16 {
-                                // Decided: hand out no more games.
+                                // Decided: hand out no more games. Games still
+                                // being played finish and are counted.
                                 *next.lock().unwrap() = usize::MAX / 2;
                             }
                         }
@@ -394,12 +395,15 @@ fn main() {
     }
     if let Some((elo0, elo1)) = sprt {
         let value = llr(&pair_means, elo0, elo1);
-        let verdict = if value >= SPRT_BOUND {
+        let capped = all.len() >= pairs * 2;
+        let verdict = if capped && value.abs() < SPRT_BOUND {
+            "undecided at the cap"
+        } else if value >= SPRT_BOUND {
             "H1 accepted (passes)"
         } else if value <= -SPRT_BOUND {
             "H0 accepted (fails)"
         } else {
-            "undecided at the cap"
+            "stopped at a bound; the games then still in play moved it back inside"
         };
         println!(
             "SPRT [{elo0}, {elo1}]: LLR {value:+.2} (bounds +-{SPRT_BOUND}) over {} pairs: {verdict}",

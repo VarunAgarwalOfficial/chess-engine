@@ -108,6 +108,9 @@ fn mop_up(pos: &Position, winner: usize) -> i32 {
 }
 
 pub fn evaluate(pos: &Position) -> i32 {
+    if let Some(score) = pos.network_eval() {
+        return score;
+    }
     let (mut mg, mut eg) = (pos.mg, pos.eg);
     terms(pos, WHITE, &mut |feature, count| {
         mg += WEIGHTS[feature].0 * count;

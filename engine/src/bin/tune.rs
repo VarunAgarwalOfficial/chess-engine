@@ -1,6 +1,6 @@
 //! Fits the evaluation's weights to game results (Texel's tuning method).
 //!
-//!   tune --data FILE [FILE ...] --out src/weights.rs [--epochs 40] [--rate 1.0]
+//!   tune --data FILE [FILE ...] --out src/weights.rs [--epochs 40] [--rate 1.0] [--tables]
 //!
 //! The data is what `datagen` writes. The evaluation is linear in its
 //! weights, so each position is reduced to its feature counts (White minus
@@ -95,6 +95,10 @@ fn main() {
         std::process::exit(2);
     }
     let epochs: usize = value("--epochs").and_then(|v| v.parse().ok()).unwrap_or(40);
+    // Without --tables the piece-square tables keep their shape and only
+    // material and the other terms are fitted: far fewer numbers, so far
+    // less noise from a small data set.
+    let tables = args.iter().any(|a| a == "--tables");
     let rate: f64 = value("--rate").and_then(|v| v.parse().ok()).unwrap_or(1.0);
 
     let mut data = Data { starts: vec![0], features: Vec::new(), phase: Vec::new(), result: Vec::new() };
@@ -169,6 +173,15 @@ fn main() {
                 for &(f, c) in &data.features[data.starts[i] as usize..data.starts[i + 1] as usize] {
                     grad[f as usize][0] += d * c as f64 * phase;
                     grad[f as usize][1] += d * c as f64 * (1.0 - phase);
+                }
+            }
+            if !tables {
+                // Tie each piece's 64 squares together: only its material moves.
+                for piece in grad[..TABLE].chunks_mut(64) {
+                    for t in 0..2 {
+                        let sum: f64 = piece.iter().map(|g| g[t]).sum();
+                        piece.iter_mut().for_each(|g| g[t] = sum);
+                    }
                 }
             }
             step += 1;

@@ -165,6 +165,13 @@ mod program {
     fn set_option(searcher: &mut Searcher, name: &str, value: &str) {
         if name.eq_ignore_ascii_case("hash") {
             searcher.resize(value.parse().unwrap_or(DEFAULT_HASH).clamp(1, 4096));
+        } else if name.eq_ignore_ascii_case("evalfile") {
+            // A network replaces the hand-written evaluation for positions
+            // set up from now on.
+            match std::fs::read(value).map_err(|e| e.to_string()).and_then(|bytes| crate::nnue::install(&bytes)) {
+                Ok(()) => println!("info string network {value} installed"),
+                Err(error) => println!("info string cannot use network {value}: {error}"),
+            }
         }
     }
 
@@ -196,6 +203,7 @@ mod program {
                     println!("id name {ENGINE_NAME}");
                     println!("id author {ENGINE_AUTHOR}");
                     println!("option name Hash type spin default {DEFAULT_HASH} min 1 max 4096");
+                    println!("option name EvalFile type string default <empty>");
                     println!("uciok");
                 }
                 "isready" => println!("readyok"),
