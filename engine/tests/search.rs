@@ -4,7 +4,7 @@ use chess::eval::evaluate;
 use chess::game::status;
 use chess::notation::move_to_uci;
 use chess::position::{Position, START_FEN};
-use chess::search::{Limits, Options, Searcher, MATE};
+use chess::search::{Limits, Searcher, MATE};
 
 fn best(fen: &str, limits: Limits) -> (String, i32) {
     let mut pos = Position::from_fen(fen).unwrap();
@@ -32,10 +32,9 @@ fn mirrored(fen: &str) -> String {
 
 #[test]
 fn evaluation_is_level_at_the_start_and_the_same_for_both_colours() {
-    let options = Options::default();
-    assert_eq!(evaluate(&Position::start(), &options), 0);
-    assert!(evaluate(&Position::from_fen("4k3/8/8/8/8/8/8/Q3K3 w - - 0 1").unwrap(), &options) > 800);
-    assert!(evaluate(&Position::from_fen("4k3/8/8/8/8/8/8/Q3K3 b - - 0 1").unwrap(), &options) < -800);
+    assert_eq!(evaluate(&Position::start()), 0);
+    assert!(evaluate(&Position::from_fen("4k3/8/8/8/8/8/8/Q3K3 w - - 0 1").unwrap()) > 800);
+    assert!(evaluate(&Position::from_fen("4k3/8/8/8/8/8/8/Q3K3 b - - 0 1").unwrap()) < -800);
     // Any term with a sign or table error for one colour breaks this.
     for fen in [
         "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
@@ -44,7 +43,7 @@ fn evaluation_is_level_at_the_start_and_the_same_for_both_colours() {
         "2kr3r/ppp2ppp/2n5/8/1b1P4/2N1PN2/PP3PPP/R4RK1 b - - 0 12",
     ] {
         let (pos, flipped) = (Position::from_fen(fen).unwrap(), Position::from_fen(&mirrored(fen)).unwrap());
-        assert_eq!(evaluate(&pos, &options), evaluate(&flipped, &options), "{fen}");
+        assert_eq!(evaluate(&pos), evaluate(&flipped), "{fen}");
     }
 }
 

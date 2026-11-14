@@ -333,7 +333,14 @@ fn main() {
     println!("engine 2: {} {:?}", specs[1].command, specs[1].options);
     println!("{} games at {tc}, {concurrency} at a time, seed {seed}", all.len());
     println!("engine 1: +{} ={} -{}  score {:.1}%", count(1.0), count(0.5), count(0.0), mean * 100.0);
-    println!("Elo difference {:+.0}, 95% interval {:+.0} to {:+.0}", elo(mean), low, high);
+    if count(1.0) == all.len() || count(0.0) == all.len() {
+        // A clean sweep has no spread to estimate from. All that can be said
+        // is how strong the winner must be for it to happen 1 time in 20.
+        let bound = elo(0.05f64.powf(1.0 / all.len() as f64));
+        println!("Elo difference: one side won every game; at least {bound:.0} at 95% confidence, no upper bound");
+    } else {
+        println!("Elo difference {:+.0}, 95% interval {:+.0} to {:+.0}", elo(mean), low, high);
+    }
     println!(
         "game time {:.0} s in total, {:.0} s on the wall",
         game_seconds.lock().unwrap(),

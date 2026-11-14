@@ -7,7 +7,6 @@
 
 use crate::bitboard::*;
 use crate::position::Position;
-use crate::search::Options;
 
 /// How much each piece counts towards the middlegame; 24 in total at the start.
 pub const PHASE_WEIGHT: [i32; 6] = [0, 1, 1, 2, 4, 0];
@@ -166,14 +165,6 @@ const ROOK_HALF_OPEN_FILE: (i32, i32) = (12, 5);
 /// Per square of mobility beyond a typical count, for knight to queen.
 const MOBILITY: [(i32, i32); 5] = [(0, 0), (4, 4), (5, 5), (2, 4), (1, 2)];
 const TYPICAL_MOBILITY: [i32; 5] = [0, 4, 6, 7, 13];
-/// Weight of each piece type bearing on the squares around the enemy king.
-const KING_ATTACK_WEIGHT: [i32; 5] = [0, 20, 20, 40, 80];
-/// Share of the attack weight that counts, by number of attackers: one
-/// piece alone is no attack.
-const KING_ATTACK_SCALE: [i32; 8] = [0, 0, 50, 75, 88, 94, 97, 99];
-const MISSING_SHIELD_PAWN: i32 = -14;
-const OPEN_FILE_BY_KING: i32 = -12;
-
 fn pawn_attack_set(colour: usize, pawns: u64) -> u64 {
     if colour == WHITE {
         (pawns & !FILE_A) << 7 | (pawns & !FILE_H) << 9
@@ -183,7 +174,7 @@ fn pawn_attack_set(colour: usize, pawns: u64) -> u64 {
 }
 
 /// Everything beyond material and piece-square tables, for one colour.
-fn terms(pos: &Position, us: usize, options: &Options) -> (i32, i32) {
+fn terms(pos: &Position, us: usize) -> (i32, i32) {
     let them = us ^ 1;
     let ours = pos.colours[us];
     let occupied = pos.occupied();
@@ -195,39 +186,33 @@ fn terms(pos: &Position, us: usize, options: &Options) -> (i32, i32) {
         eg += e * times;
     };
 
-    if options.eval_terms {
-        for sq in bits(our_pawns) {
-            let file = FILE_A << (sq & 7);
-            let beside = (file & !FILE_A) >> 1 | (file & !FILE_H) << 1;
-            let rank = sq / 8;
-            let ahead = if us == WHITE { (!0u64 << 8) << (rank * 8) } else { (1u64 << (rank * 8)) - 1 };
-            if our_pawns & file & ahead != 0 {
-                add(DOUBLED_PAWN, 1);
-            } else if their_pawns & (file | beside) & ahead == 0 {
-                add(PASSED_PAWN[if us == WHITE { rank } else { 7 - rank }], 1);
-            }
-            if our_pawns & beside == 0 {
-                add(ISOLATED_PAWN, 1);
-            }
+    for sq in bits(our_pawns) {
+        let file = FILE_A << (sq & 7);
+        let beside = (file & !FILE_A) >> 1 | (file & !FILE_H) << 1;
+        let rank = sq / 8;
+        let ahead = if us == WHITE { (!0u64 << 8) << (rank * 8) } else { (1u64 << (rank * 8)) - 1 };
+        if our_pawns & file & ahead != 0 {
+            add(DOUBLED_PAWN, 1);
+        } else if their_pawns & (file | beside) & ahead == 0 {
+            add(PASSED_PAWN[if us == WHITE { rank } else { 7 - rank }], 1);
         }
-        if (pos.pieces[BISHOP] & ours).count_ones() >= 2 {
-            add(BISHOP_PAIR, 1);
+        if our_pawns & beside == 0 {
+            add(ISOLATED_PAWN, 1);
         }
-        for sq in bits(pos.pieces[ROOK] & ours) {
-            let file = FILE_A << (sq & 7);
-            if our_pawns & file == 0 {
-                add(if their_pawns & file == 0 { ROOK_OPEN_FILE } else { ROOK_HALF_OPEN_FILE }, 1);
-            }
+    }
+    if (pos.pieces[BISHOP] & ours).count_ones() >= 2 {
+        add(BISHOP_PAIR, 1);
+    }
+    for sq in bits(pos.pieces[ROOK] & ours) {
+        let file = FILE_A << (sq & 7);
+        if our_pawns & file == 0 {
+            add(if their_pawns & file == 0 { ROOK_OPEN_FILE } else { ROOK_HALF_OPEN_FILE }, 1);
         }
     }
 
     // Mobility: squares each piece can go to that are not held by our own
-    // pawns or king and not covered by an enemy pawn. The same pass counts
-    // the pieces that bear on the enemy king.
+    // pawns or king and not covered by an enemy pawn.
     let area = !(our_pawns | pos.pieces[KING] & ours | pawn_attack_set(them, their_pawns));
-    let their_king = pos.king_square(them);
-    let king_zone = king_attacks(their_king) | bit(their_king);
-    let (mut attackers, mut attack_weight) = (0, 0);
     for piece in KNIGHT..=QUEEN {
         for sq in bits(pos.pieces[piece] & ours) {
             let attacks = match piece {
@@ -236,32 +221,7 @@ fn terms(pos: &Position, us: usize, options: &Options) -> (i32, i32) {
                 ROOK => rook_attacks(sq, occupied),
                 _ => bishop_attacks(sq, occupied) | rook_attacks(sq, occupied),
             };
-            if options.eval_terms {
-                add(MOBILITY[piece], (attacks & area).count_ones() as i32 - TYPICAL_MOBILITY[piece]);
-            }
-            if attacks & king_zone != 0 {
-                attackers += 1;
-                attack_weight += KING_ATTACK_WEIGHT[piece];
-            }
-        }
-    }
-
-    if options.king_safety {
-        mg += attack_weight * KING_ATTACK_SCALE[attackers.min(7)] / 100;
-        // Our own king wants pawns in front of it once it has left the centre.
-        let king = pos.king_square(us);
-        let home_rank = if us == WHITE { king / 8 == 0 } else { king / 8 == 7 };
-        if home_rank && king % 8 != 3 && king % 8 != 4 {
-            let front = if us == WHITE { 0xffff00u64 } else { 0xffff00u64 << 32 };
-            for file in (king % 8).saturating_sub(1)..=(king % 8 + 1).min(7) {
-                let file = FILE_A << file;
-                if our_pawns & file & front == 0 {
-                    mg += MISSING_SHIELD_PAWN;
-                    if our_pawns & file == 0 {
-                        mg += OPEN_FILE_BY_KING;
-                    }
-                }
-            }
+            add(MOBILITY[piece], (attacks & area).count_ones() as i32 - TYPICAL_MOBILITY[piece]);
         }
     }
     (mg, eg)
@@ -277,13 +237,10 @@ fn mop_up(pos: &Position, winner: usize) -> i32 {
     10 * from_centre + 4 * (14 - apart)
 }
 
-pub fn evaluate(pos: &Position, options: &Options) -> i32 {
-    let (mut mg, mut eg) = (pos.mg, pos.eg);
-    if options.eval_terms || options.king_safety {
-        let (white, black) = (terms(pos, WHITE, options), terms(pos, BLACK, options));
-        mg += white.0 - black.0;
-        eg += white.1 - black.1;
-    }
+pub fn evaluate(pos: &Position) -> i32 {
+    let (white, black) = (terms(pos, WHITE), terms(pos, BLACK));
+    let mg = pos.mg + white.0 - black.0;
+    let eg = pos.eg + white.1 - black.1;
     let phase = pos.phase.min(MAX_PHASE);
     let mut score = (mg * phase + eg * (MAX_PHASE - phase)) / MAX_PHASE;
     if pos.pieces[PAWN] == 0 && score.abs() >= 300 {

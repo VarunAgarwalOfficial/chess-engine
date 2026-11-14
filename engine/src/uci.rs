@@ -163,14 +163,8 @@ mod program {
     }
 
     fn set_option(searcher: &mut Searcher, name: &str, value: &str) {
-        let on = value.eq_ignore_ascii_case("true");
-        match name.to_ascii_lowercase().as_str() {
-            "hash" => searcher.resize(value.parse().unwrap_or(DEFAULT_HASH).clamp(1, 4096)),
-            "pruning" => searcher.options.pruning = on,
-            "reductions" => searcher.options.reductions = on,
-            "evalterms" => searcher.options.eval_terms = on,
-            "kingsafety" => searcher.options.king_safety = on,
-            _ => {}
+        if name.eq_ignore_ascii_case("hash") {
+            searcher.resize(value.parse().unwrap_or(DEFAULT_HASH).clamp(1, 4096));
         }
     }
 
@@ -202,9 +196,6 @@ mod program {
                     println!("id name {ENGINE_NAME}");
                     println!("id author {ENGINE_AUTHOR}");
                     println!("option name Hash type spin default {DEFAULT_HASH} min 1 max 4096");
-                    for name in ["Pruning", "Reductions", "EvalTerms", "KingSafety"] {
-                        println!("option name {name} type check default false");
-                    }
                     println!("uciok");
                 }
                 "isready" => println!("readyok"),

@@ -1,5 +1,7 @@
 //! The search: iterative deepening over a principal-variation alpha-beta
 //! search with a transposition table and a quiescence search at the leaves.
+//! Each pruning and reduction idea here was kept because it won a self-play
+//! match against the version without it; STRENGTH.md has the numbers.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -20,20 +22,6 @@ const TT_MOVE_SCORE: i32 = 1 << 30;
 const CAPTURE_SCORE: i32 = 1 << 28;
 const KILLER_SCORE: i32 = 1 << 26;
 const HISTORY_MAX: i32 = 1 << 14;
-
-/// Switches for the ideas that were tested by self-play (see STRENGTH.md).
-#[derive(Clone, Debug, Default)]
-pub struct Options {
-    /// Reverse futility, futility, late move and exchange pruning.
-    pub pruning: bool,
-    /// Logarithmic reductions steered by history, aspiration windows,
-    /// countermoves, losing captures ordered last, deeper null move.
-    pub reductions: bool,
-    /// Mobility, pawn structure, passed pawns, bishop pair, rook files.
-    pub eval_terms: bool,
-    /// Attacks on the king's neighbourhood and its pawn shield.
-    pub king_safety: bool,
-}
 
 #[derive(Clone, Debug, Default)]
 pub struct Limits {
@@ -65,7 +53,6 @@ pub struct Outcome {
 }
 
 pub struct Searcher {
-    pub options: Options,
     /// Set from another thread to end the search early.
     pub stop: Arc<AtomicBool>,
     tt: Table,
@@ -99,7 +86,6 @@ impl Searcher {
             }
         }
         Searcher {
-            options: Options::default(),
             stop: Arc::new(AtomicBool::new(false)),
             tt: Table::new(hash_megabytes),
             history: vec![0; 2 * 64 * 64],
@@ -198,7 +184,7 @@ impl Searcher {
     /// outside it.
     fn search_root(&mut self, pos: &mut Position, depth: i32, previous: i32) -> i32 {
         self.root_move = Move::NONE;
-        if !self.options.reductions || depth < 5 || previous.abs() >= MATE_BOUND {
+        if depth < 5 || previous.abs() >= MATE_BOUND {
             return self.negamax(pos, depth, -MATE, MATE, 0, false);
         }
         let mut margin = 25;
@@ -260,7 +246,7 @@ impl Searcher {
                 return if pos.in_check() && list.is_empty() { -MATE + ply as i32 } else { 0 };
             }
             if ply >= MAX_PLY - 1 {
-                return evaluate(pos, &self.options);
+                return evaluate(pos);
             }
             // No line from here can beat a mate already found nearer the root.
             alpha = alpha.max(-MATE + ply as i32);
@@ -310,7 +296,7 @@ impl Searcher {
         let static_eval = match entry {
             _ if in_check => -MATE,
             Some(entry) => entry.eval as i32,
-            None => evaluate(pos, &self.options),
+            None => evaluate(pos),
         };
         self.evals[ply] = static_eval;
         // Is the position getting better for the side to move? If not,
@@ -320,21 +306,13 @@ impl Searcher {
         if !pv_node && !in_check {
             // Reverse futility: so far ahead that a shallow search cannot
             // be expected to bring the score back under beta.
-            if self.options.pruning
-                && depth <= 7
-                && beta.abs() < MATE_BOUND
-                && static_eval - 80 * (depth - improving as i32) >= beta
-            {
+            if depth <= 7 && beta.abs() < MATE_BOUND && static_eval - 80 * (depth - improving as i32) >= beta {
                 return static_eval;
             }
             // Null move: if passing the turn still leaves us at or above
             // beta, a real move will too. Unsafe in pawn endings (zugzwang).
             if allow_null && depth >= 3 && static_eval >= beta && pos.has_pieces(pos.side) {
-                let reduction = if self.options.reductions {
-                    3 + depth / 4 + ((static_eval - beta) / 200).min(3)
-                } else {
-                    2 + depth / 6
-                };
+                let reduction = 3 + depth / 4 + ((static_eval - beta) / 200).min(3);
                 pos.make_null();
                 self.played[ply] = NO_COUNTER;
                 let score = -self.negamax(pos, depth - 1 - reduction, -beta, -beta + 1, ply + 1, false);
@@ -349,7 +327,7 @@ impl Searcher {
         }
         // With no move from the table, ordering is poor and a full-depth
         // search is expensive: look a little less deep.
-        if self.options.reductions && depth >= 4 && tt_move == Move::NONE && !in_check {
+        if depth >= 4 && tt_move == Move::NONE && !in_check {
             depth -= 1;
         }
 
@@ -377,7 +355,7 @@ impl Searcher {
                 continue;
             }
 
-            if self.options.pruning && !root && depth <= 6 && best > -MATE_BOUND {
+            if !root && depth <= 6 && best > -MATE_BOUND {
                 if quiet && !in_check {
                     // Late move pruning: after enough quiet moves have
                     // failed at low depth, the rest will too.
@@ -409,19 +387,15 @@ impl Searcher {
                 // zero window, and quiet ones far down the list to a reduced
                 // depth. Only a surprise is searched again properly.
                 let mut reduction = 0;
-                if depth >= 3 && quiet && !in_check && !pos.in_check() {
-                    if self.options.reductions {
-                        if searched >= 2 {
-                            reduction = self.reductions[depth.min(63) as usize * 64 + searched.min(63) as usize];
-                            reduction -= pv_node as i32;
-                            reduction += !improving as i32;
-                            reduction -= self.history[Self::history_index(side, m)] / (HISTORY_MAX / 2);
-                            reduction -= (scores[i] >= KILLER_SCORE - 1) as i32;
-                            reduction = reduction.clamp(0, depth - 2);
-                        }
-                    } else if searched >= 4 {
-                        reduction = if searched >= 12 { 2 } else { 1 };
-                    }
+                if depth >= 3 && searched >= 2 && quiet && !in_check && !pos.in_check() {
+                    // More for late moves at high depth; less in the main
+                    // line, for killers, and for moves with a good record.
+                    reduction = self.reductions[depth.min(63) as usize * 64 + searched.min(63) as usize];
+                    reduction -= pv_node as i32;
+                    reduction += !improving as i32;
+                    reduction -= self.history[Self::history_index(side, m)] / (HISTORY_MAX / 2);
+                    reduction -= (scores[i] >= KILLER_SCORE - 1) as i32;
+                    reduction = reduction.clamp(0, depth - 2);
                 }
                 score = -self.negamax(pos, depth - 1 - reduction, -alpha - 1, -alpha, ply + 1, true);
                 if score > alpha && reduction > 0 {
@@ -499,14 +473,14 @@ impl Searcher {
             return 0;
         }
         if ply >= MAX_PLY - 1 {
-            return evaluate(pos, &self.options);
+            return evaluate(pos);
         }
 
         // In check there is no "standing pat": every evasion must be tried.
         let in_check = pos.in_check();
         let mut best = -MATE + ply as i32;
         if !in_check {
-            best = evaluate(pos, &self.options);
+            best = evaluate(pos);
             if best >= beta {
                 return best;
             }
@@ -520,7 +494,7 @@ impl Searcher {
         for i in 0..list.len() {
             let m = pick_next(list.as_mut_slice(), &mut scores, i);
             // A capture that loses material will not rescue the position.
-            if self.options.pruning && !in_check && !pos.see_at_least(m, 0) {
+            if !in_check && !pos.see_at_least(m, 0) {
                 continue;
             }
             pos.make(m);
@@ -542,13 +516,14 @@ impl Searcher {
         best
     }
 
-    /// Ordering: the table move, then captures by most valuable victim and
-    /// least valuable attacker, then the killer moves of this ply, then
-    /// quiet moves by how often they have caused cutoffs.
+    /// Ordering: the table move, then captures that do not lose material by
+    /// most valuable victim and least valuable attacker, the killer moves of
+    /// this ply, the usual reply to the opponent's last move, quiet moves by
+    /// how often they have caused cutoffs, and last the losing captures.
     fn score_moves(&self, pos: &Position, list: &MoveList, scores: &mut [i32; 256], tt_move: Move, ply: usize) {
         let killers = self.killers[ply];
         let counter = match ply.checked_sub(1).map(|p| self.played[p]) {
-            Some(index) if index != NO_COUNTER && self.options.reductions => self.counters[index / 64][index % 64],
+            Some(index) if index != NO_COUNTER => self.counters[index / 64][index % 64],
             _ => Move::NONE,
         };
         for (i, &m) in list.as_slice().iter().enumerate() {
@@ -558,7 +533,7 @@ impl Searcher {
                 // An en passant victim is not on the target square.
                 let victim = if m.is_capture() { (pos.board[m.to()] as usize % 6) as i32 + 1 } else { 0 };
                 let gain = victim * 8 - pos.board[m.from()] as i32 + if m.promotion() == Some(QUEEN) { 64 } else { 0 };
-                if self.options.reductions && !pos.see_at_least(m, 0) {
+                if !pos.see_at_least(m, 0) {
                     gain - CAPTURE_SCORE
                 } else {
                     gain + CAPTURE_SCORE
@@ -593,10 +568,8 @@ impl Searcher {
             *h += bonus - *h * bonus.abs() / HISTORY_MAX;
         };
         update(m, bonus);
-        if self.options.reductions {
-            for &other in failed {
-                update(other, -bonus);
-            }
+        for &other in failed {
+            update(other, -bonus);
         }
     }
 }
