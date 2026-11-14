@@ -197,6 +197,7 @@ tests ran at 1 s + 0.02 s with a cap of 400 to 500 games. A test with a time los
 | 8 | More evaluation terms, tuned: pawn threats, minor-piece threats on rooks and queens, king distance to passed pawns, protected passed pawns, tempo, knight outposts | 1+0.02 | 100 | +108, +57 to +163 | H1 accepted | **kept** |
 | 9 | Network evaluation (768 → 64×2 → 1, trained on the 1.37 million positions) in place of the hand-written evaluation | 1+0.02 | 50 | −191, −293 to −112 | H0 accepted | not kept; not installed by default |
 | 10 | A third group of tuned terms: connected pawns by rank, rook on the seventh, pawns on the bishop's colour, squares from which a piece could give check | 1+0.02 | 400 | +11, −14 to +37 | LLR +0.15, undecided at the cap | not kept |
+| 11 | Clock again: clock/20 instead of clock/25 a move | 1+0.02 | 400 | −4, −30 to +21 | LLR −1.75, undecided at the cap | not kept |
 
 Notes on single rows:
 
