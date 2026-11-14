@@ -59,20 +59,26 @@ export function numberMoves(sans, fen) {
   });
 }
 
-const START_COUNT = { p: 8, n: 2, b: 2, r: 2, q: 1 };
 const VALUE = { p: 1, n: 3, b: 3, r: 5, q: 9 };
 
-// From the board alone: the pieces each side has lost, as letters in
-// order of value, and the material balance in pawns (positive for White).
-export function material(pieces) {
-  const count = { w: {}, b: {} };
-  for (const code of pieces.values()) count[code[0]][code[1]] = (count[code[0]][code[1]] ?? 0) + 1;
+// From two boards, the game's first and the one shown: the pieces each
+// side has lost since, as letters in order of value, and the material
+// balance now in pawns (positive for White).
+export function material(pieces, initial) {
+  const tally = (board) => {
+    const count = { w: {}, b: {} };
+    for (const [colour, letter] of board.values()) {
+      count[colour][letter] = (count[colour][letter] ?? 0) + 1;
+    }
+    return count;
+  };
+  const [now, before] = [tally(pieces), tally(initial)];
   const lost = (colour) =>
     [...'qrbnp'].flatMap((letter) =>
-      Array(Math.max(0, START_COUNT[letter] - (count[colour][letter] ?? 0))).fill(letter),
+      Array(Math.max(0, (before[colour][letter] ?? 0) - (now[colour][letter] ?? 0))).fill(letter),
     );
   const total = (colour) =>
-    Object.keys(VALUE).reduce((sum, l) => sum + VALUE[l] * (count[colour][l] ?? 0), 0);
+    Object.keys(VALUE).reduce((sum, l) => sum + VALUE[l] * (now[colour][l] ?? 0), 0);
   return { whiteLost: lost('w'), blackLost: lost('b'), balance: total('w') - total('b') };
 }
 

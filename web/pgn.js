@@ -42,7 +42,8 @@ export function toPgn(game, headers = {}) {
 export function parsePgn(text) {
   const headers = {};
   let body = '';
-  for (const line of text.split(/\r?\n/)) {
+  // Tags pasted on one line are put back on lines of their own.
+  for (const line of text.replace(/"\]\s*(?=\[|\d)/g, '"]\n').split(/\r?\n/)) {
     const tag = line.match(/^\s*\[(\w+)\s+"((?:[^"\\]|\\.)*)"\]\s*$/);
     if (tag) {
       if (body.trim()) break; // the next game starts here

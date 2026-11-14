@@ -118,7 +118,7 @@ function toggleSound() {
 
 function toggleMarking() {
   board.setMarkMode(!board.markMode);
-  if (board.markMode) note('Drag on the board to draw arrows; tap a square to mark it.', 5000);
+  if (board.markMode) note('Drag on the board to draw; tap to mark.', 4000);
   render(false);
 }
 

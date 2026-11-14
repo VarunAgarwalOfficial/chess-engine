@@ -65,10 +65,10 @@ export function scheduleSound(audio, kind, at) {
     knock(audio, out, at + 0.045, 900, 0.45);
   } else if (kind === 'check') {
     knock(audio, out, at, 1000, 0.45);
-    tone(audio, out, at + 0.02, 660, 0.2, 0.09);
+    tone(audio, out, at + 0.02, 660, 0.2, 0.14);
   } else if (kind === 'end') {
-    tone(audio, out, at, 523, 0.28, 0.12);
-    tone(audio, out, at + 0.16, 392, 0.45, 0.12);
+    tone(audio, out, at, 523, 0.28, 0.22);
+    tone(audio, out, at + 0.16, 392, 0.45, 0.22);
   } else {
     knock(audio, out, at, 1000, 0.45);
   }

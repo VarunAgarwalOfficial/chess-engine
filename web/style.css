@@ -162,11 +162,11 @@ button {
 }
 
 button:hover:not(:disabled) {
-  background: var(--hover);
+  background-color: var(--hover);
 }
 
 button:active:not(:disabled) {
-  background: var(--line);
+  background-color: var(--line);
 }
 
 button:disabled {
@@ -184,7 +184,7 @@ button.primary {
 button.primary:hover:not(:disabled),
 button.primary:active:not(:disabled) {
   border-color: color-mix(in srgb, var(--accent) 86%, var(--ink));
-  background: color-mix(in srgb, var(--accent) 86%, var(--ink));
+  background-color: color-mix(in srgb, var(--accent) 86%, var(--ink));
 }
 
 button.quiet,
@@ -728,6 +728,15 @@ label.check {
   border-radius: 6px;
 }
 
+/* In the dark the board is turned down a little; the pieces are not. */
+.squares::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: light-dark(transparent, rgb(10 8 5 / 0.14));
+  pointer-events: none;
+}
+
 .square {
   position: relative;
   background: var(--square);
@@ -946,7 +955,8 @@ line.mark {
   width: 12.5%;
   overflow: hidden;
   border-radius: 1cqw;
-  background: var(--surface);
+  /* Light in both modes: the pieces are black and white. */
+  background: #f6f3ec;
   box-shadow:
     0 0 0 1px var(--line),
     var(--shadow);
@@ -963,14 +973,14 @@ line.mark {
   background-size: 88%;
 }
 
-.promotion button:hover,
+.promotion button:hover:not(:disabled),
 .promotion button:focus-visible {
-  background-color: var(--accent-soft);
+  background-color: #cfe3d6;
   outline: none;
 }
 
 .promotion button:focus-visible {
-  box-shadow: inset 0 0 0 2px var(--accent);
+  box-shadow: inset 0 0 0 2px #2a6a4c;
 }
 
 /* ----- side panel ----- */
@@ -1072,7 +1082,7 @@ line.mark {
   width: 30px;
   height: 18px;
   border-radius: 9px;
-  background: var(--line);
+  background: color-mix(in srgb, var(--muted) 55%, var(--surface));
   cursor: pointer;
   transition: background-color 0.15s;
 }
@@ -1386,8 +1396,13 @@ strong.mark-sign {
 
 /* The pieces are black and white on any background; in the dark they
    stand on a lighter tile. */
-.palette .piece {
-  background-color: light-dark(var(--bg), #55524b);
+.palette .piece,
+.palette .piece:hover:not(:disabled) {
+  background-color: light-dark(var(--bg), #6b675f);
+}
+
+.palette .piece:hover:not(:disabled) {
+  border-color: var(--muted);
 }
 
 .palette .word {
@@ -1673,8 +1688,13 @@ dialog::backdrop {
     padding-top: 4px;
   }
 
+  /* No players while editing: the tools come straight after the board. */
+  .editing .player {
+    height: 8px;
+  }
+
   .editor {
-    padding-top: 12px;
+    padding-top: 4px;
   }
 
   .palette button {

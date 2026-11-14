@@ -49,6 +49,7 @@ export function render(animate = true) {
   renderReview();
   syncAnalysis(renderAnalysis);
   renderAnalysis();
+  showCurrentMove();
 }
 
 function renderBoard(animate) {
@@ -78,7 +79,10 @@ function renderBoard(animate) {
 function renderPlayers() {
   const { game, cursor, clock } = state;
   const position = game.stateAt(cursor);
-  const { whiteLost, blackLost, balance } = material(parseBoard(position.fen));
+  const { whiteLost, blackLost, balance } = material(
+    parseBoard(position.fen),
+    parseBoard(game.startFen),
+  );
   const over = game.status().over;
   const top = state.flipped ? 'white' : 'black';
   for (const [id, side] of [
@@ -210,6 +214,8 @@ function renderMoves() {
       button.append(make('span', `mark-sign ${mark}`, MARKS[mark].sign));
       button.title = mark[0].toUpperCase() + mark.slice(1);
     }
+    // One stop for the Tab key: the move shown. The arrow keys do the rest.
+    button.tabIndex = i + 1 === Math.max(1, cursor) ? 0 : -1;
     if (i + 1 === cursor) {
       button.classList.add('current');
       button.setAttribute('aria-current', 'true');
@@ -218,14 +224,21 @@ function renderMoves() {
     if (!white) number++;
     white = !white;
   });
+}
+
+// Brings the current move into view, scrolling only the list, never the
+// page. Done last, when everything around the list has its final size.
+function showCurrentMove() {
+  const list = $('moves');
   const current = list.querySelector('.current');
-  if (current) {
-    // Scroll only the list, never the page.
-    const [top, bottom] = [current.offsetTop, current.offsetTop + current.offsetHeight];
-    if (top < list.scrollTop) list.scrollTop = top - 4;
-    else if (bottom > list.scrollTop + list.clientHeight)
-      list.scrollTop = bottom - list.clientHeight + 4;
-  } else list.scrollTop = 0;
+  if (!current) {
+    list.scrollTop = 0;
+    return;
+  }
+  const [top, bottom] = [current.offsetTop, current.offsetTop + current.offsetHeight];
+  if (top < list.scrollTop) list.scrollTop = top - 4;
+  else if (bottom > list.scrollTop + list.clientHeight)
+    list.scrollTop = bottom - list.clientHeight + 4;
 }
 
 function renderActions() {
