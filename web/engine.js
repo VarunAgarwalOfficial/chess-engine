@@ -1,6 +1,6 @@
 // The Rust engine, compiled to WebAssembly. Requests and replies are text
-// in a buffer inside the module's memory: a FEN and the moves played since
-// go in, JSON comes out.
+// in a buffer inside the module's memory: a FEN, the moves played since and
+// search parameters go in, JSON comes out.
 
 // source: a URL to fetch, or the bytes of engine.wasm.
 export async function loadEngine(source) {
@@ -14,8 +14,8 @@ export async function loadEngine(source) {
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
 
-  function call(fen, moves, run) {
-    const request = encoder.encode(`${fen}\n${moves.join(' ')}`);
+  function call(run, fen, moves = [], parameters = '') {
+    const request = encoder.encode(`${fen}\n${moves.join(' ')}\n${parameters}`);
     // Each call may grow the memory, which replaces memory.buffer, so the
     // buffer is looked up only after the call that precedes its use.
     const at = wasm.buffer(request.length);
@@ -29,8 +29,10 @@ export async function loadEngine(source) {
 
   return {
     // { fen, turn, over, result, reason, check, moves: [{ uci, san, capture }] }
-    describe: (fen, moves = []) => call(fen, moves, wasm.describe),
-    // { best, depth, score, mate, nodes, time }
-    think: (fen, moves, milliseconds) => call(fen, moves, () => wasm.think(milliseconds)),
+    describe: (fen, moves) => call(wasm.describe, fen, moves),
+    // A search under UCI "go" parameters, e.g. "depth 8" or "movetime 500".
+    // { best, depth, score, mate, nodes, time, pv: [uci], san: [san] }
+    // score is in centipawns for the side to move.
+    go: (fen, moves, parameters) => call(wasm.go, fen, moves, parameters),
   };
 }

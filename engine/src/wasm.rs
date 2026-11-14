@@ -5,8 +5,8 @@
 //! `reply` returns.
 //!
 //! A request is a FEN on the first line and the moves played since, in
-//! coordinate notation, on the second. The page keeps no chess rules of
-//! its own.
+//! coordinate notation, on the second; `go` reads UCI `go` parameters from
+//! a third. The page keeps no chess rules of its own.
 
 #![allow(unsafe_code)] // only for the `no_mangle` exports; no unsafe blocks
 
@@ -18,7 +18,7 @@ use crate::movegen::legal_moves;
 use crate::notation::{move_to_san, move_to_uci};
 use crate::position::Position;
 use crate::search::{Limits, Searcher};
-use crate::uci::mate_in;
+use crate::uci::{mate_in, parse_go, search_limits};
 
 static BUFFER: Mutex<Vec<u8>> = Mutex::new(Vec::new());
 static SEARCHER: Mutex<Option<Searcher>> = Mutex::new(None);
@@ -26,13 +26,15 @@ static SEARCHER: Mutex<Option<Searcher>> = Mutex::new(None);
 /// Table size for the page, in megabytes.
 const HASH: usize = 16;
 
-fn request() -> Result<Position, String> {
+/// The position asked about, and the request's third line.
+fn request() -> Result<(Position, String), String> {
     let buffer = BUFFER.lock().map_err(|_| "buffer lock")?;
     let text = std::str::from_utf8(&buffer).map_err(|_| "request is not text")?;
     let mut lines = text.lines();
     let fen = lines.next().unwrap_or("");
     let moves: Vec<&str> = lines.next().unwrap_or("").split_whitespace().collect();
-    position_from_moves(fen, &moves)
+    let pos = position_from_moves(fen, &moves)?;
+    Ok((pos, lines.next().unwrap_or("").to_string()))
 }
 
 fn respond(json: Result<String, String>) -> usize {
@@ -71,16 +73,46 @@ pub fn describe_json(pos: &mut Position) -> String {
 /// centipawns for the side to move, or `mate` in that many moves.
 pub fn think_json(searcher: &mut Searcher, pos: &mut Position, milliseconds: f64) -> String {
     let limits = Limits { move_time: Some(milliseconds), ..Limits::default() };
-    let outcome = searcher.search(pos, &limits, &mut |_| {});
+    search_json(searcher, pos, &limits)
+}
+
+/// A search under UCI `go` parameters ("depth 8", "movetime 500", "wtime
+/// 60000 btime 60000 winc 1000 binc 1000"). The reply is `think`'s, plus
+/// the expected line: `pv` in coordinate notation and `san` in algebraic.
+pub fn go_json(searcher: &mut Searcher, pos: &mut Position, parameters: &str) -> String {
+    let tokens: Vec<&str> = parameters.split_whitespace().collect();
+    let limits = search_limits(&parse_go(&tokens), pos.side);
+    search_json(searcher, pos, &limits)
+}
+
+fn search_json(searcher: &mut Searcher, pos: &mut Position, limits: &Limits) -> String {
+    let outcome = searcher.search(pos, limits, &mut |_| {});
     let info = outcome.info;
+    // Walk the line to name each move, stopping at anything that is not
+    // legal where it stands, then put the position back.
+    let (mut pv, mut san, mut made) = (Vec::new(), Vec::new(), Vec::new());
+    for &m in &info.pv {
+        if !legal_moves(pos).as_slice().contains(&m) {
+            break;
+        }
+        pv.push(format!("\"{}\"", move_to_uci(m)));
+        san.push(format!("\"{}\"", move_to_san(pos, m)));
+        pos.make(m);
+        made.push(m);
+    }
+    for &m in made.iter().rev() {
+        pos.unmake(m);
+    }
     format!(
-        "{{\"best\":{},\"depth\":{},\"score\":{},\"mate\":{},\"nodes\":{},\"time\":{}}}",
+        "{{\"best\":{},\"depth\":{},\"score\":{},\"mate\":{},\"nodes\":{},\"time\":{},\"pv\":[{}],\"san\":[{}]}}",
         outcome.best.map_or("null".to_string(), |m| format!("\"{}\"", move_to_uci(m))),
         info.depth,
         info.score,
         mate_in(info.score).map_or("null".to_string(), |n| n.to_string()),
         info.nodes,
-        info.time.round()
+        info.time.round(),
+        pv.join(","),
+        san.join(",")
     )
 }
 
@@ -101,13 +133,21 @@ pub extern "C" fn reply() -> *const u8 {
 
 #[no_mangle]
 pub extern "C" fn describe() -> usize {
-    respond(request().map(|mut pos| describe_json(&mut pos)))
+    respond(request().map(|(mut pos, _)| describe_json(&mut pos)))
 }
 
 #[no_mangle]
 pub extern "C" fn think(milliseconds: f64) -> usize {
-    respond(request().map(|mut pos| {
+    respond(request().map(|(mut pos, _)| {
         let mut searcher = SEARCHER.lock().expect("searcher lock");
         think_json(searcher.get_or_insert_with(|| Searcher::new(HASH)), &mut pos, milliseconds)
+    }))
+}
+
+#[no_mangle]
+pub extern "C" fn go() -> usize {
+    respond(request().map(|(mut pos, parameters)| {
+        let mut searcher = SEARCHER.lock().expect("searcher lock");
+        go_json(searcher.get_or_insert_with(|| Searcher::new(HASH)), &mut pos, &parameters)
     }))
 }
