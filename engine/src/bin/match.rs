@@ -3,7 +3,14 @@
 //!
 //!   match --engine1 CMD --engine2 CMD [--options1 "Name=value ..."]
 //!         [--options2 "..."] [--games 200] [--tc 1+0.01] [--concurrency 4]
-//!         [--seed 1]
+//!         [--seed 1] [--sprt "0 20"]
+//!
+//! With `--sprt "elo0 elo1"` the match is a sequential probability ratio
+//! test of "engine 1 is elo1 stronger" against "it is elo0 stronger", with
+//! 5% error rates each way: it stops as soon as the games played decide it,
+//! and `--games` is only the cap. The log-likelihood ratio is the normal
+//! approximation of the generalised test (Van den Bergh), taken over
+//! opening pairs, the unit that varies independently.
 //!
 //! Each opening is a few random moves from the start position, kept only if
 //! a short search calls it roughly level, and is played twice with colours
@@ -246,6 +253,34 @@ fn elo(score: f64) -> f64 {
     -400.0 * (1.0 / p - 1.0).log10()
 }
 
+/// Expected score for an Elo advantage.
+fn expected(elo: f64) -> f64 {
+    1.0 / (1.0 + 10f64.powf(-elo / 400.0))
+}
+
+/// Log-likelihood ratio of H1 (elo1) against H0 (elo0) given the scores of
+/// the finished opening pairs: (s1 - s0)(2 mean - s0 - s1) / (2 var / n).
+fn llr(pair_scores: &[f64], elo0: f64, elo1: f64) -> f64 {
+    let n = pair_scores.len() as f64;
+    if n < 2.0 {
+        return 0.0;
+    }
+    let mean = pair_scores.iter().sum::<f64>() / n;
+    let variance = pair_scores.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / n;
+    if variance <= 0.0 {
+        return 0.0;
+    }
+    let (s0, s1) = (expected(elo0), expected(elo1));
+    (s1 - s0) * (2.0 * mean - s0 - s1) / (2.0 * variance / n)
+}
+
+/// ln((1 - beta) / alpha) with alpha = beta = 0.05; the lower bound is its negative.
+const SPRT_BOUND: f64 = 2.944;
+
+fn finished_pairs(results: &[[Option<f64>; 2]]) -> Vec<f64> {
+    results.iter().filter_map(|p| Some((p[0]? + p[1]?) / 2.0)).collect()
+}
+
 fn parse_options(text: &str) -> Vec<(String, String)> {
     text.split_whitespace()
         .filter_map(|pair| pair.split_once('='))
@@ -269,6 +304,10 @@ fn main() {
     let concurrency: usize = value("--concurrency").and_then(|v| v.parse().ok()).unwrap_or(4).clamp(1, 4);
     let seed: u64 = value("--seed").and_then(|v| v.parse().ok()).unwrap_or(1).max(1);
     let tc = value("--tc").unwrap_or("1+0.01".into());
+    let sprt: Option<(f64, f64)> = value("--sprt").map(|v| {
+        let mut parts = v.split_whitespace().map(|x| x.parse::<f64>().expect("--sprt \"elo0 elo1\""));
+        (parts.next().expect("--sprt elo0"), parts.next().expect("--sprt elo1"))
+    });
     let (base, increment) = tc.split_once('+').unwrap_or((&tc, "0"));
     let (base, increment): (f64, f64) = (base.parse().expect("--tc base"), increment.parse().expect("--tc increment"));
 
@@ -301,7 +340,18 @@ fn main() {
                     let order = if first_is_white { [first, second] } else { [second, first] };
                     let played = play(order, &lines[pair], base, increment);
                     let score = if first_is_white { played.white_score } else { 1.0 - played.white_score };
-                    results.lock().unwrap()[pair][game % 2] = Some(score);
+                    {
+                        let mut results = results.lock().unwrap();
+                        results[pair][game % 2] = Some(score);
+                        if let Some((elo0, elo1)) = sprt {
+                            let done = finished_pairs(&results);
+                            if llr(&done, elo0, elo1).abs() >= SPRT_BOUND && done.len() >= 16 {
+                                // Decided: hand out no more games. Games still
+                                // being played finish and are counted.
+                                *next.lock().unwrap() = usize::MAX / 2;
+                            }
+                        }
+                    }
                     *game_seconds.lock().unwrap() += played.seconds;
                     if let Some(fault) = played.fault {
                         let culprit = if (played.white_score == 0.0) == first_is_white { 1 } else { 2 };
@@ -318,12 +368,14 @@ fn main() {
     }
 
     let results = results.lock().unwrap();
-    let all: Vec<f64> = results.iter().flatten().flatten().copied().collect();
+    // Only whole pairs count: a test that stops early leaves some half played.
+    let all: Vec<f64> =
+        results.iter().filter(|p| p[0].is_some() && p[1].is_some()).flatten().flatten().copied().collect();
     let count = |s: f64| all.iter().filter(|&&x| x == s).count();
     let mean = all.iter().sum::<f64>() / all.len() as f64;
     // The two games of a pair share an opening, so the pair is the unit
     // that varies independently; error bars come from pair scores.
-    let pair_means: Vec<f64> = results.iter().map(|p| (p[0].unwrap_or(0.5) + p[1].unwrap_or(0.5)) / 2.0).collect();
+    let pair_means = finished_pairs(&results);
     let variance =
         pair_means.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / (pair_means.len() as f64 - 1.0).max(1.0);
     let error = 1.96 * (variance / pair_means.len() as f64).sqrt();
@@ -340,6 +392,23 @@ fn main() {
         println!("Elo difference: one side won every game; at least {bound:.0} at 95% confidence, no upper bound");
     } else {
         println!("Elo difference {:+.0}, 95% interval {:+.0} to {:+.0}", elo(mean), low, high);
+    }
+    if let Some((elo0, elo1)) = sprt {
+        let value = llr(&pair_means, elo0, elo1);
+        let capped = all.len() >= pairs * 2;
+        let verdict = if capped && value.abs() < SPRT_BOUND {
+            "undecided at the cap"
+        } else if value >= SPRT_BOUND {
+            "H1 accepted (passes)"
+        } else if value <= -SPRT_BOUND {
+            "H0 accepted (fails)"
+        } else {
+            "stopped at a bound; the games then still in play moved it back inside"
+        };
+        println!(
+            "SPRT [{elo0}, {elo1}]: LLR {value:+.2} (bounds +-{SPRT_BOUND}) over {} pairs: {verdict}",
+            pair_means.len()
+        );
     }
     println!(
         "game time {:.0} s in total, {:.0} s on the wall",

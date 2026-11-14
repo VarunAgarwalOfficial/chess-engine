@@ -4,6 +4,7 @@
 
 use crate::bitboard::*;
 use crate::eval::{piece_square, PHASE_WEIGHT};
+use crate::nnue::{network, Accumulator};
 
 pub const START_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
@@ -153,6 +154,11 @@ pub struct Position {
     pub eg: i32,
     pub phase: i32,
     stack: Vec<Undo>,
+    /// The network's first-layer sums, one per position on the line being
+    /// searched; empty when no network is installed.
+    accumulators: Vec<Accumulator>,
+    /// Set while a move is taken back: the accumulator is popped, not updated.
+    undoing: bool,
 }
 
 impl Position {
@@ -179,6 +185,8 @@ impl Position {
             eg: 0,
             phase: 0,
             stack: Vec::with_capacity(256),
+            accumulators: network().map(|n| vec![n.empty()]).unwrap_or_default(),
+            undoing: false,
         };
 
         let ranks: Vec<&str> = fields[0].split('/').collect();
@@ -327,6 +335,11 @@ impl Position {
         self.mg += mg;
         self.eg += eg;
         self.phase += PHASE_WEIGHT[piece];
+        if !self.undoing {
+            if let (Some(top), Some(network)) = (self.accumulators.last_mut(), network()) {
+                network.add(top, colour, piece, sq);
+            }
+        }
     }
 
     #[inline]
@@ -339,6 +352,11 @@ impl Position {
         self.mg -= mg;
         self.eg -= eg;
         self.phase -= PHASE_WEIGHT[piece];
+        if !self.undoing {
+            if let (Some(top), Some(network)) = (self.accumulators.last_mut(), network()) {
+                network.remove(top, colour, piece, sq);
+            }
+        }
     }
 
     fn save(&mut self, captured: u8) {
@@ -375,6 +393,9 @@ impl Position {
         let captured_sq = if kind == Move::EN_PASSANT { to ^ 8 } else { to };
         let captured = if m.is_capture() { self.board[captured_sq] } else { EMPTY };
         self.save(captured);
+        if let Some(&top) = self.accumulators.last() {
+            self.accumulators.push(top);
+        }
 
         if self.ep != NO_SQUARE {
             self.hash ^= ep_key(self.ep);
@@ -419,6 +440,8 @@ impl Position {
 
     /// Takes back the last move, which must be `m`.
     pub fn unmake(&mut self, m: Move) {
+        self.undoing = true;
+        self.accumulators.pop();
         self.side ^= 1;
         let (us, them) = (self.side, self.side ^ 1);
         let (from, to, kind) = (m.from(), m.to(), m.kind());
@@ -443,6 +466,13 @@ impl Position {
         if us == BLACK {
             self.fullmove -= 1;
         }
+        self.undoing = false;
+    }
+
+    /// The network's evaluation for the side to move, if one is installed.
+    #[inline]
+    pub fn network_eval(&self) -> Option<i32> {
+        Some(network()?.evaluate(self.accumulators.last()?, self.side))
     }
 
     /// Passes the turn. Only the search does this.
