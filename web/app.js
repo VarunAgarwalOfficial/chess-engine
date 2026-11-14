@@ -22,6 +22,9 @@ const make = (tag, className, text) => {
   return el;
 };
 const cap = (side) => (side === 'white' ? 'White' : 'Black');
+// The engine's messages start in lower case.
+const sentence = (error) =>
+  `${error.message[0].toUpperCase()}${error.message.slice(1)}.`.replace(/\.\.$/, '.');
 const other = (side) => (side === 'white' ? 'black' : 'white');
 
 // Weaker levels look a move or a few ahead and choose with some noise;
@@ -94,6 +97,7 @@ function stopEngines() {
   reviewToken++;
   thinking = false;
   reviewing = null;
+  clearNote();
   player.cancel();
   analyst.cancel();
   analysisKey = '';
@@ -450,6 +454,11 @@ function reviewResult() {
 
 // ----- drawing -----
 
+function clearNote() {
+  clearTimeout(note.timer);
+  $('note').textContent = '';
+}
+
 function note(text, time = 3000) {
   $('note').textContent = text;
   clearTimeout(note.timer);
@@ -460,6 +469,7 @@ function render(animate = true) {
   document.body.classList.toggle('editing', Boolean(editor));
   $('play-panel').hidden = Boolean(editor);
   $('editor-panel').hidden = !editor;
+  $('open-editor').setAttribute('aria-pressed', String(Boolean(editor)));
   if (editor) {
     renderEditor();
     return;
@@ -593,7 +603,7 @@ function renderActions() {
   show('hint', !over, myTurn);
   show('draw', !over, myTurn && game.length > 1);
   show('resign', !over, live && game.length > 0);
-  show('review-run', game.length > 0 && (over || setup.side === 'both'), !reviewing && !review);
+  show('review-run', game.length > 0 && (over || setup.side === 'both') && !review, !reviewing);
   show('rematch', over);
   $('first').disabled = $('prev').disabled = cursor === 0;
   $('next').disabled = $('last').disabled = atEnd();
@@ -668,6 +678,10 @@ function renderReview() {
 
   const comment = $('review-comment');
   comment.replaceChildren();
+  if (betterArrow) {
+    comment.textContent = `Better here: ${review.best[cursor].san}.`;
+    return;
+  }
   if (!cursor) return;
   const move = result.moves[cursor - 1];
   const best = review.best[cursor - 1];
@@ -735,7 +749,7 @@ function editorCheck() {
     const state = rules.describe(editorFen());
     return state.over ? 'The game is already over in this position.' : '';
   } catch (error) {
-    return error.message;
+    return sentence(error);
   }
 }
 
@@ -857,7 +871,12 @@ function renderGames() {
       day: 'numeric',
       month: 'short',
     });
-    const facts = [result ? results[result] : 'In progress', `${moves} moves`, when, opening];
+    const facts = [
+      result ? results[result] : 'In progress',
+      `${moves} ${moves === 1 ? 'move' : 'moves'}`,
+      when,
+      opening,
+    ];
     open.append(make('span', 'facts', facts.filter(Boolean).join(' · ')));
     if (record.id === gameId) open.setAttribute('aria-current', 'true');
     open.addEventListener('click', () => {
@@ -867,7 +886,7 @@ function renderGames() {
       try {
         openRecord(record);
       } catch (error) {
-        note(error.message);
+        note(sentence(error));
       }
     });
     const remove = make('button', 'quiet', 'Delete');
@@ -943,7 +962,7 @@ $('fen-load').addEventListener('click', () => {
     $('position-dialog').close();
     openNewGame();
   } catch (error) {
-    $('position-error').textContent = error.message;
+    $('position-error').textContent = sentence(error);
   }
 });
 $('pgn-load').addEventListener('click', () => {
@@ -966,7 +985,7 @@ $('pgn-load').addEventListener('click', () => {
     persist();
     $('position-dialog').close();
   } catch (error) {
-    $('position-error').textContent = error.message;
+    $('position-error').textContent = sentence(error);
   }
 });
 
@@ -984,7 +1003,7 @@ $('editor-fen').addEventListener('change', () => {
   try {
     loadEditor(rules.describe($('editor-fen').value.trim()).fen);
   } catch (error) {
-    $('editor-error').textContent = error.message;
+    $('editor-error').textContent = sentence(error);
     return;
   }
   $('editor-fen').blur();
@@ -1090,5 +1109,5 @@ try {
   else startGame(first);
 } catch (error) {
   startGame(first);
-  note(error.message, 6000);
+  note(sentence(error), 6000);
 }

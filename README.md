@@ -75,14 +75,52 @@ what was tried and removed.
 **Around the engine.** `uci.rs` is the UCI protocol: parsing and formatting as pure functions,
 and a loop that reads standard input while the search runs on its own thread, so `stop` is
 heard at once. `wasm.rs` is the interface for the page: text in, JSON out, through one shared
-buffer, with no binding generator. `web/` draws the board and passes clicks on; it asks the
-engine which moves are legal and how the game stands, and runs the search in a Web Worker.
+buffer, with no binding generator. It has two requests. `describe` takes a start position and
+the moves played, and returns the position, how the game stands and every legal move with its
+notation. `go` takes the same plus UCI `go` parameters, and returns the best move, the score
+and the expected line in both notations.
+
+**The page** (`web/`). A static site with no framework and no dependencies. It keeps no chess
+rules of its own: which moves are legal, how they are written, whether the game is over and
+whether a set-up position can be played are all asked of the engine. One copy of the engine
+answers those questions on the main thread; two more run in Web Workers, one to play and one
+to analyse.
+
+- A search in WebAssembly cannot be interrupted from outside. Analysis therefore runs as a
+  series of searches, each one ply deeper and sharing the transposition table, and gives way
+  to a newer request between them; a search that must stop at once has its worker replaced.
+- The weaker levels do not search less well, they choose less well: every legal move is
+  scored by a shallow search, random noise is added to the scores, and the best noisy score
+  is played. A forced mate is never passed up. Stronger levels search to a fixed depth, and
+  the strongest has only the clock.
+- Pieces slide because the board compares the position before and after: a piece that left
+  one square and a piece of the same kind that appeared on another are the same piece. That
+  covers castling, en passant and takebacks without the board knowing what they are.
+- A premove is two squares remembered until the turn arrives, then tried against the legal
+  moves.
+- A review searches every position of the game once. The value of a move is the score of
+  the position after it, so one search per position gives both the best move and what the
+  played move cost. Scores are turned into winning chances (the curve Lichess fitted to its
+  games) and a move is an inaccuracy, mistake or blunder when it gives up 10, 20 or 30
+  points of winning chance.
+- PGN import drops comments, variations and annotations, then matches each word against
+  the notation of the legal moves.
+- Opening names come from a hand-written table of about 170 lines in `eco.js`; a game is
+  named by the longest line its moves begin with.
+- Sounds are made with WebAudio; there are no audio files.
 
 ```
 engine/src/        the engine library (pure, tested)
 engine/src/bin/    uci.rs (UCI engine, perft, bench), match.rs (engine against engine)
 engine/tests/      perft, rules, search, the UCI program as a process
 web/               the page, and engine.wasm built from the library
+  app.js             holds the game and wires everything together
+  board.js           drawing, drag and drop, premoves, arrows, keyboard
+  game.js            the moves played and the engine's description of each position
+  engine.js, worker.js, client.js   the WebAssembly engine and its workers
+  pgn.js, eco.js, review.js, clock.js, text.js   pure logic
+  sound.js, store.js   WebAudio and localStorage
+  pieces/            the piece images, with their own licence
 bin/serve.js       a small web server for the page
 test/              the page's code against the real engine.wasm
 ```
@@ -98,9 +136,25 @@ npm start       # then open http://localhost:8000/
 
 The port comes from `PORT` (copy `.env.example` to `.env` to change it).
 
-On the page: click a piece, then a marked square. Choose your side, or "Both sides" for two
-players at one board as in the original. Any position can be loaded as FEN, also by URL:
-`/web/?side=black&fen=...`.
+On the page:
+
+- **Moving.** Drag a piece, or click it and then a marked square; both work with a mouse and
+  with a finger. While the engine thinks you can line up your reply. With the board focused,
+  Enter picks up and puts down and the arrow keys move between squares.
+- **Drawing.** Right-click and drag for an arrow, right-click a square to mark it; Shift, Alt
+  and Ctrl give other colours. A left click clears them.
+- **New game.** Play White, Black, a random side, or both sides for two players at one board
+  as in the original. Eight engine levels from beginner to full strength. No clock, or one of
+  seven time controls.
+- **During a game.** Takeback, hint, offer a draw (the engine accepts when it stands worse),
+  resign. The evaluation bar and the engine's line can be switched off.
+- **Looking back.** Click a move or use the arrow keys; F flips the board. Review marks
+  inaccuracies, mistakes and blunders and shows the better move. A move made while looking
+  back at a finished game starts a new game from that point.
+- **Position.** Copy or load FEN and PGN. The editor sets up any position the engine accepts.
+  A position can also be given by URL: `/web/?side=black&fen=...`.
+- **Games** are kept in the browser's localStorage and can be reopened from the list.
+- **Settings.** Light or dark, four board colours, sounds, coordinates, legal-move dots.
 
 `web/engine.wasm` is checked in, so the page runs without building anything. To rebuild it
 after changing the engine:
@@ -150,11 +204,15 @@ The tests are few on purpose. The move generator is checked against the publishe
 for the six standard perft positions, which exercises every rule of movement. The rest cover the
 ways a game ends, a handful of search results (forced mates, a basic endgame mate, an
 evaluation that is the same for both colours), the UCI program run as a real process, and the
-page's code playing a game through the real `engine.wasm`.
+page's logic against the real `engine.wasm`: a game played through it, PGN out and back, the
+review's marks, the clock, and the weak levels' choice of move.
 
 ## Limits
 
-Draws by repetition and the fifty-move rule are applied automatically rather than claimed. The
+Draws by repetition and the fifty-move rule are applied automatically rather than claimed. A
+flag falls even when the other side could never mate. PGN import reads the first game and
+only its main line. Arrows cannot be drawn on a touch screen. The engine levels are not
+calibrated to ratings. The
 engine has no opening book or endgame tables, and searches on one thread. The evaluation is
 hand written and its weights are untuned; it knows nothing about king safety, which was tried
 and did not show a gain. Its strength on an absolute scale has not been measured.
@@ -162,4 +220,5 @@ and did not show a gain. Its strength on an absolute scale has not been measured
 ## Credit
 
 Based on the Pygame chess game by Varun Agarwal, 2021. Piece-square tables are PeSTO's, by
-Ronald Friederich.
+Ronald Friederich. The chess pieces are by Colin M.L. Burnett, from Wikimedia Commons, under
+CC BY-SA 3.0 (`web/pieces/LICENSE.txt`); the rest of the project is under the MIT licence.

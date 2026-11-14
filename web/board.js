@@ -379,7 +379,11 @@ export class Board {
       );
       if (far < slack) return;
       drag.moved = true;
-      this.root.setPointerCapture(event.pointerId);
+      try {
+        this.root.setPointerCapture(event.pointerId);
+      } catch {
+        // The pointer is already gone; the drag simply ends at the edge.
+      }
       drag.el.classList.add('dragging');
     }
     const box = this.root.getBoundingClientRect();

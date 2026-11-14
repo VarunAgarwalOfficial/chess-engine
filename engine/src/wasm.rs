@@ -1,7 +1,7 @@
 //! The interface for the browser board, as a plain C ABI so that no
 //! binding generator is needed. Text goes both ways through one shared
 //! buffer: the page asks for room with `buffer`, writes its request there,
-//! calls `describe` or `think`, and reads the JSON reply from the address
+//! calls `describe` or `go`, and reads the JSON reply from the address
 //! `reply` returns.
 //!
 //! A request is a FEN on the first line and the moves played since, in
@@ -69,16 +69,11 @@ pub fn describe_json(pos: &mut Position) -> String {
     )
 }
 
-/// The engine's move: `best` is null when there is none; the score is in
-/// centipawns for the side to move, or `mate` in that many moves.
-pub fn think_json(searcher: &mut Searcher, pos: &mut Position, milliseconds: f64) -> String {
-    let limits = Limits { move_time: Some(milliseconds), ..Limits::default() };
-    search_json(searcher, pos, &limits)
-}
-
 /// A search under UCI `go` parameters ("depth 8", "movetime 500", "wtime
-/// 60000 btime 60000 winc 1000 binc 1000"). The reply is `think`'s, plus
-/// the expected line: `pv` in coordinate notation and `san` in algebraic.
+/// 60000 btime 60000 winc 1000 binc 1000"). `best` is null when there is
+/// no legal move; the score is in centipawns for the side to move, or
+/// `mate` in that many moves; `pv` is the expected line in coordinate
+/// notation and `san` the same line in algebraic.
 pub fn go_json(searcher: &mut Searcher, pos: &mut Position, parameters: &str) -> String {
     let tokens: Vec<&str> = parameters.split_whitespace().collect();
     let limits = search_limits(&parse_go(&tokens), pos.side);
@@ -134,14 +129,6 @@ pub extern "C" fn reply() -> *const u8 {
 #[no_mangle]
 pub extern "C" fn describe() -> usize {
     respond(request().map(|(mut pos, _)| describe_json(&mut pos)))
-}
-
-#[no_mangle]
-pub extern "C" fn think(milliseconds: f64) -> usize {
-    respond(request().map(|(mut pos, _)| {
-        let mut searcher = SEARCHER.lock().expect("searcher lock");
-        think_json(searcher.get_or_insert_with(|| Searcher::new(HASH)), &mut pos, milliseconds)
-    }))
 }
 
 #[no_mangle]
