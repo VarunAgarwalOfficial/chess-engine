@@ -7,3 +7,4 @@ export { evaluate, PIECE_VALUE } from './eval.js';
 export { Searcher, MATE, MATE_BOUND } from './search.js';
 export { moveToUci, moveToSan, findMove } from './notation.js';
 export { Game, positionFromMoves } from './game.js';
+export { runSearchJob } from './search-job.js';

@@ -21,7 +21,9 @@ const TYPE_LETTERS = ' pnbrqk';
 
 export function moveToUci(m) {
   const promotion = movePromotion(m);
-  return squareName(moveFrom(m)) + squareName(moveTo(m)) + (promotion ? TYPE_LETTERS[promotion] : '');
+  return (
+    squareName(moveFrom(m)) + squareName(moveTo(m)) + (promotion ? TYPE_LETTERS[promotion] : '')
+  );
 }
 
 // The legal move matching coordinate text, or 0 when there is none.

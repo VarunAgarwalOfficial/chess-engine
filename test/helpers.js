@@ -33,7 +33,9 @@ function pseudoLegal(pos) {
     if (from & 0x88 || !board[from] || board[from] >> 3 !== us) continue;
     const type = board[from] & 7;
     const add = (to, flags = 0, promotion = 0) =>
-      moves.push(encodeMove(from, to, type, flags & EN_PASSANT ? PAWN : board[to] & 7, promotion, flags));
+      moves.push(
+        encodeMove(from, to, type, flags & EN_PASSANT ? PAWN : board[to] & 7, promotion, flags),
+      );
     if (type === PAWN) {
       const addPawn = (to, flags) => {
         if (to >> 4 === 0 || to >> 4 === 7) {
@@ -59,7 +61,8 @@ function pseudoLegal(pos) {
         else if (board[to] >> 3 === them) add(to, CAPTURE);
       }
     } else {
-      const steps = type === ROOK ? RAY_STEPS.slice(0, 4) : type === BISHOP ? RAY_STEPS.slice(4) : RAY_STEPS;
+      const steps =
+        type === ROOK ? RAY_STEPS.slice(0, 4) : type === BISHOP ? RAY_STEPS.slice(4) : RAY_STEPS;
       for (const step of steps) {
         for (let to = from + step; !(to & 0x88); to += step) {
           if (!board[to]) add(to);

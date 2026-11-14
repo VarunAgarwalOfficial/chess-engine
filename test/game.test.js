@@ -11,7 +11,12 @@ function playAll(game, moves) {
 test("fool's mate is checkmate for Black", () => {
   const game = new Game();
   playAll(game, ['f2f3', 'e7e5', 'g2g4', 'd8h4']);
-  assert.deepEqual(game.status(), { over: true, result: 'black', reason: 'checkmate', check: true });
+  assert.deepEqual(game.status(), {
+    over: true,
+    result: 'black',
+    reason: 'checkmate',
+    check: true,
+  });
   assert.deepEqual(
     game.history.map((h) => h.san),
     ['f3', 'e5', 'g4', 'Qh4#'],
@@ -21,7 +26,12 @@ test("fool's mate is checkmate for Black", () => {
 
 test('stalemate is a draw', () => {
   const game = new Game('7k/5Q2/6K1/8/8/8/8/8 b - - 0 1');
-  assert.deepEqual(game.status(), { over: true, result: 'draw', reason: 'stalemate', check: false });
+  assert.deepEqual(game.status(), {
+    over: true,
+    result: 'draw',
+    reason: 'stalemate',
+    check: false,
+  });
 });
 
 test('threefold repetition is a draw, twofold is not', () => {

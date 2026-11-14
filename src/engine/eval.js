@@ -5,7 +5,7 @@
 // a table per piece that says where it likes to stand, with a few terms for
 // pawn structure and a second king table for the endgame.
 
-import { WHITE, BLACK, PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING } from './board.js';
+import { WHITE, BLACK, PAWN, BISHOP, ROOK, KING } from './board.js';
 
 export const PIECE_VALUE = [0, 100, 320, 330, 500, 900, 0];
 

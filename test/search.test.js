@@ -33,7 +33,7 @@ test('evaluation is zero at the start and symmetric under colour swap', () => {
   }
 });
 
-test('evaluation prefers more material and is from the mover\'s side', () => {
+test("evaluation prefers more material and is from the mover's side", () => {
   const up = '4k3/8/8/8/8/8/8/Q3K3';
   assert.ok(evaluate(new Position(`${up} w - - 0 1`)) > 800);
   assert.ok(evaluate(new Position(`${up} b - - 0 1`)) < -800);
@@ -84,7 +84,13 @@ test('avoids stalemate when winning', () => {
 test('returns a legal move under every kind of limit', () => {
   const fen = 'r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1';
   const legal = generateMoves(new Position(fen)).map(moveToUci);
-  for (const limits of [{ depth: 1 }, { moveTime: 0 }, { moveTime: 30 }, { nodes: 1 }, { nodes: 5000 }]) {
+  for (const limits of [
+    { depth: 1 },
+    { moveTime: 0 },
+    { moveTime: 30 },
+    { nodes: 1 },
+    { nodes: 5000 },
+  ]) {
     const r = best(fen, limits);
     assert.ok(legal.includes(r.uci), JSON.stringify(limits));
   }
@@ -106,7 +112,10 @@ test('deeper search does not change a forced mate score (table mate scores are p
   searcher.search(pos, { depth: 9, onInfo: (info) => scores.push(info.score) });
   const mates = scores.filter((s) => s > MATE - 100);
   assert.ok(mates.length > 0);
-  assert.ok(mates.every((s) => s === MATE - 5), scores.join(','));
+  assert.ok(
+    mates.every((s) => s === MATE - 5),
+    scores.join(','),
+  );
 });
 
 function playOut(fen, maxPlies) {

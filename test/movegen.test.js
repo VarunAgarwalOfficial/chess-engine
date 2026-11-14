@@ -23,7 +23,8 @@ test('the pin-and-check generator agrees with play-and-verify over random games'
       const moves = generateMoves(pos);
       assert.deepEqual(sorted(moves), sorted(referenceMoves(pos)), pos.fen());
       const tactical = generateMoves(pos, true);
-      for (const m of tactical) assert.ok(moves.includes(m), `tactical move is legal: ${pos.fen()}`);
+      for (const m of tactical)
+        assert.ok(moves.includes(m), `tactical move is legal: ${pos.fen()}`);
       checked++;
       if (moves.length === 0) break;
       pos.make(moves[Math.floor(random() * moves.length)]);
@@ -131,10 +132,7 @@ test('castling rights are lost when the king or a rook moves or the rook is take
 
 test('promotion offers four pieces, also when capturing', () => {
   const moves = uciMoves('1n5k/P7/8/8/8/8/8/K7 w - - 0 1').filter((m) => m.startsWith('a7'));
-  assert.deepEqual(moves, [
-    'a7a8b', 'a7a8n', 'a7a8q', 'a7a8r',
-    'a7b8b', 'a7b8n', 'a7b8q', 'a7b8r',
-  ]);
+  assert.deepEqual(moves, ['a7a8b', 'a7a8n', 'a7a8q', 'a7a8r', 'a7b8b', 'a7b8n', 'a7b8q', 'a7b8r']);
 });
 
 test('FEN round trip and validation', () => {
