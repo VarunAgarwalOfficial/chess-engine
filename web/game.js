@@ -3,75 +3,133 @@
 
 export const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
+// What stands where, read off a FEN: square name -> "wk", "bp", ...
+export function parseBoard(fen) {
+  const pieces = new Map();
+  fen
+    .split(' ')[0]
+    .split('/')
+    .forEach((row, i) => {
+      let file = 0;
+      for (const c of row) {
+        if (c >= '1' && c <= '8') {
+          file += Number(c);
+          continue;
+        }
+        const colour = c === c.toUpperCase() ? 'w' : 'b';
+        pieces.set('abcdefgh'[file] + (8 - i), colour + c.toLowerCase());
+        file++;
+      }
+    });
+  return pieces;
+}
+
+// The board field of a FEN from a map of squares.
+export function boardField(pieces) {
+  const rows = [];
+  for (let rank = 8; rank >= 1; rank--) {
+    let row = '';
+    let empty = 0;
+    for (const file of 'abcdefgh') {
+      const piece = pieces.get(file + rank);
+      if (!piece) {
+        empty++;
+        continue;
+      }
+      if (empty) row += empty;
+      empty = 0;
+      row += piece[0] === 'w' ? piece[1].toUpperCase() : piece[1];
+    }
+    rows.push(row + (empty || ''));
+  }
+  return rows.join('/');
+}
+
 export class Game {
   // Throws on a FEN the engine rejects.
   constructor(engine, fen = START_FEN) {
     this.engine = engine;
-    this.state = engine.describe(fen);
-    this.startFen = this.state.fen;
-    // Each entry: { uci, san, capture }.
-    this.history = [];
+    this.start = engine.describe(fen);
+    this.startFen = this.start.fen;
+    // Each ply: { uci, san, capture, state }, state being the engine's
+    // description of the position after the move.
+    this.plies = [];
+    // Set when the game ends other than on the board: { result, reason }.
+    this.ending = null;
+  }
+
+  get length() {
+    return this.plies.length;
+  }
+
+  // The position after `count` moves.
+  stateAt(count = this.length) {
+    return count === 0 ? this.start : this.plies[count - 1].state;
+  }
+
+  get state() {
+    return this.stateAt();
   }
 
   get turn() {
     return this.state.turn;
   }
 
-  fen() {
-    return this.state.fen;
+  fen(count) {
+    return this.stateAt(count).fen;
+  }
+
+  ucis(count = this.length) {
+    return this.plies.slice(0, count).map((p) => p.uci);
+  }
+
+  sans(count = this.length) {
+    return this.plies.slice(0, count).map((p) => p.san);
   }
 
   // { over, result, reason, check }. result is 'white', 'black' or 'draw'.
   status() {
     const { over, result, reason, check } = this.state;
+    if (!over && this.ending) return { over: true, ...this.ending, check };
     return { over, result, reason, check };
   }
 
   legalMoves() {
-    return this.state.over ? [] : this.state.moves;
+    return this.status().over ? [] : this.state.moves;
   }
 
-  // Plays a move given in coordinate text. Returns the history entry, or
-  // null when the move is not legal here.
+  // Plays a move given in coordinate text. Returns the ply, or null when
+  // the move is not legal here.
   play(uci) {
     const move = this.legalMoves().find((m) => m.uci === uci);
     if (!move) return null;
-    this.history.push(move);
-    this.refresh();
-    return move;
+    const state = this.engine.describe(this.startFen, [...this.ucis(), uci]);
+    const ply = { ...move, state };
+    this.plies.push(ply);
+    return ply;
+  }
+
+  // Drops everything after the first `count` moves.
+  truncate(count) {
+    this.plies.length = Math.max(0, Math.min(count, this.plies.length));
+    this.ending = null;
   }
 
   undo() {
-    const entry = this.history.pop() ?? null;
-    if (entry) this.refresh();
-    return entry;
+    const ply = this.plies.at(-1) ?? null;
+    this.truncate(this.length - 1);
+    return ply;
   }
 
-  refresh() {
-    this.state = this.engine.describe(
-      this.startFen,
-      this.history.map((h) => h.uci),
-    );
+  // A plain record for storage, and back.
+  toJSON() {
+    return { fen: this.startFen, moves: this.ucis(), ending: this.ending };
   }
 
-  // What stands where, read off the FEN: square name -> { letter, colour }.
-  pieces() {
-    const pieces = new Map();
-    this.state.fen
-      .split(' ')[0]
-      .split('/')
-      .forEach((row, i) => {
-        let file = 0;
-        for (const c of row) {
-          if (c >= '1' && c <= '8') {
-            file += Number(c);
-            continue;
-          }
-          const colour = c === c.toUpperCase() ? 'white' : 'black';
-          pieces.set('abcdefgh'[file] + (8 - i), { letter: c.toLowerCase(), colour });
-          file++;
-        }
-      });
-    return pieces;
+  static fromJSON(engine, record) {
+    const game = new Game(engine, record.fen);
+    for (const uci of record.moves) if (!game.play(uci)) throw new Error(`Illegal move: ${uci}`);
+    game.ending = game.state.over ? null : (record.ending ?? null);
+    return game;
   }
 }

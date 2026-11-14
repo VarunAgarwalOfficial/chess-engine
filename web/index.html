@@ -2,59 +2,251 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
     <title>Chess</title>
+    <link rel="icon" href="pieces/wn.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <main>
-      <div class="board-wrap">
-        <div id="board" class="board" role="grid" aria-label="Chess board"></div>
-      </div>
+    <header class="bar">
+      <span class="brand">Chess</span>
+      <nav aria-label="Main">
+        <button id="open-new" type="button" class="primary">New game</button>
+        <button id="open-games" type="button">Games</button>
+        <button id="open-position" type="button">Position</button>
+        <button id="open-editor" type="button">Editor</button>
+        <button id="open-settings" type="button">Settings</button>
+      </nav>
+    </header>
 
-      <aside class="panel">
-        <h1>Chess</h1>
-        <p id="status" class="status" role="status" aria-live="polite"></p>
-        <p id="engine-info" class="engine-info"></p>
-
-        <div class="controls">
-          <label>
-            You play
-            <select id="side">
-              <option value="white">White</option>
-              <option value="black">Black</option>
-              <option value="both">Both sides</option>
-            </select>
-          </label>
-          <label>
-            Engine time
-            <select id="time">
-              <option value="300">0.3 s</option>
-              <option value="1000" selected>1 s</option>
-              <option value="3000">3 s</option>
-            </select>
-          </label>
+    <main class="layout">
+      <section class="table" aria-label="Board">
+        <div id="player-top" class="player"></div>
+        <div class="stage">
+          <div id="evalbar" class="evalbar" role="img" aria-label="Evaluation">
+            <div class="fill"></div>
+          </div>
+          <div id="board" class="board"></div>
         </div>
-        <div class="buttons">
-          <button id="new" type="button">New game</button>
-          <button id="undo" type="button">Undo</button>
-          <button id="flip" type="button">Flip board</button>
+        <div id="player-bottom" class="player"></div>
+      </section>
+
+      <aside id="play-panel" class="panel" aria-label="Game">
+        <div class="headline">
+          <p id="status" class="status" role="status" aria-live="polite"></p>
+          <p id="note" class="note" role="status" aria-live="polite"></p>
+          <p id="opening" class="opening"></p>
         </div>
 
-        <h2>Moves</h2>
-        <ol id="moves" class="moves"></ol>
+        <section class="analysis" aria-label="Engine analysis">
+          <div class="analysis-head">
+            <span id="score" class="score"></span>
+            <span id="depth" class="depth"></span>
+            <label class="switch">
+              <input id="analysis-on" type="checkbox" />
+              <span>Analysis</span>
+            </label>
+          </div>
+          <p id="line" class="line"></p>
+        </section>
 
-        <h2>Position</h2>
-        <form id="fen-form" class="fen">
-          <input id="fen" type="text" spellcheck="false" autocomplete="off" aria-label="FEN" />
-          <button type="submit">Load</button>
-        </form>
-        <p id="fen-error" class="error" role="alert"></p>
+        <div id="moves" class="moves" aria-label="Moves"></div>
+
+        <div class="nav" role="group" aria-label="Move through the game">
+          <button id="first" type="button" aria-label="First move" title="First move">
+            <svg viewBox="0 0 16 16"><path d="M4 3v10M12 3 6.5 8l5.5 5" /></svg>
+          </button>
+          <button id="prev" type="button" aria-label="Previous move" title="Previous move">
+            <svg viewBox="0 0 16 16"><path d="M10.5 3 5 8l5.5 5" /></svg>
+          </button>
+          <button id="next" type="button" aria-label="Next move" title="Next move">
+            <svg viewBox="0 0 16 16"><path d="M5.5 3 11 8l-5.5 5" /></svg>
+          </button>
+          <button id="last" type="button" aria-label="Last move" title="Last move">
+            <svg viewBox="0 0 16 16"><path d="M12 3v10M4 3l5.5 5L4 13" /></svg>
+          </button>
+          <button id="flip" type="button">Flip</button>
+        </div>
+
+        <div class="actions">
+          <button id="takeback" type="button">Takeback</button>
+          <button id="hint" type="button">Hint</button>
+          <button id="draw" type="button">Draw</button>
+          <button id="resign" type="button">Resign</button>
+          <button id="review-run" type="button">Review</button>
+          <button id="rematch" type="button">Rematch</button>
+        </div>
+
+        <section id="review" class="review" aria-label="Review" hidden>
+          <div id="review-progress" class="progress" hidden><div></div></div>
+          <table id="review-table">
+            <thead>
+              <tr>
+                <th></th>
+                <th>Accuracy</th>
+                <th>Inaccuracies</th>
+                <th>Mistakes</th>
+                <th>Blunders</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+          <svg
+            id="review-graph"
+            class="graph"
+            preserveAspectRatio="none"
+            role="img"
+            aria-label="Evaluation through the game"
+          ></svg>
+          <p id="review-comment" class="comment"></p>
+        </section>
+      </aside>
+
+      <aside id="editor-panel" class="panel editor" aria-label="Board editor" hidden>
+        <h2>Board editor</h2>
+        <p class="help">
+          Pick a piece, then click squares. Drag pieces to move them, or off the board to remove
+          them.
+        </p>
+        <div id="palette" class="palette" role="group" aria-label="Tool"></div>
+        <fieldset class="segmented">
+          <legend>To move</legend>
+          <label
+            ><input type="radio" name="editor-turn" value="w" checked /><span>White</span></label
+          >
+          <label><input type="radio" name="editor-turn" value="b" /><span>Black</span></label>
+        </fieldset>
+        <fieldset class="checks">
+          <legend>Castling</legend>
+          <label><input type="checkbox" data-castle="K" /> White short</label>
+          <label><input type="checkbox" data-castle="Q" /> White long</label>
+          <label><input type="checkbox" data-castle="k" /> Black short</label>
+          <label><input type="checkbox" data-castle="q" /> Black long</label>
+        </fieldset>
+        <div class="row">
+          <button id="editor-start" type="button">Start position</button>
+          <button id="editor-clear" type="button">Clear board</button>
+        </div>
+        <label class="field">
+          FEN
+          <input id="editor-fen" type="text" spellcheck="false" autocomplete="off" />
+        </label>
+        <p id="editor-error" class="error" role="alert"></p>
+        <div class="row end">
+          <button id="editor-cancel" type="button">Cancel</button>
+          <button id="editor-analyse" type="button">Analyse</button>
+          <button id="editor-play" type="button" class="primary">Play from here</button>
+        </div>
       </aside>
     </main>
 
-    <dialog id="promotion" aria-label="Promote to">
-      <form method="dialog" class="promotion-choices"></form>
+    <dialog id="new-dialog" aria-labelledby="new-title">
+      <form method="dialog">
+        <h2 id="new-title">New game</h2>
+        <fieldset class="segmented">
+          <legend>Play as</legend>
+          <label><input type="radio" name="side" value="white" /><span>White</span></label>
+          <label><input type="radio" name="side" value="black" /><span>Black</span></label>
+          <label><input type="radio" name="side" value="random" /><span>Random</span></label>
+          <label><input type="radio" name="side" value="both" /><span>Both sides</span></label>
+        </fieldset>
+        <label class="field" id="level-field">
+          <span>Engine strength <strong id="level-name"></strong></span>
+          <input id="level" type="range" min="1" max="8" step="1" />
+        </label>
+        <fieldset class="segmented wrap">
+          <legend>Time</legend>
+          <div id="time-options"></div>
+        </fieldset>
+        <label id="from-position" class="check" hidden>
+          <input id="use-position" type="checkbox" checked /> Start from the position set up
+        </label>
+        <div class="row end">
+          <button value="cancel" type="submit" formnovalidate>Cancel</button>
+          <button value="start" type="submit" class="primary">Start</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="games-dialog" aria-labelledby="games-title">
+      <form method="dialog">
+        <h2 id="games-title">Games</h2>
+        <ul id="games-list" class="games"></ul>
+        <p id="games-empty" class="help">Games you play are kept here, in this browser.</p>
+        <div class="row end"><button type="submit">Close</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="position-dialog" aria-labelledby="position-title">
+      <form method="dialog">
+        <h2 id="position-title">Position</h2>
+        <label class="field">
+          FEN
+          <input id="fen" type="text" spellcheck="false" autocomplete="off" />
+        </label>
+        <div class="row">
+          <button id="fen-copy" type="button">Copy</button>
+          <button id="fen-load" type="button">Load</button>
+        </div>
+        <label class="field">
+          PGN
+          <textarea id="pgn" rows="9" spellcheck="false"></textarea>
+        </label>
+        <div class="row">
+          <button id="pgn-copy" type="button">Copy</button>
+          <button id="pgn-load" type="button">Load</button>
+        </div>
+        <p id="position-error" class="error" role="alert"></p>
+        <div class="row end"><button type="submit">Close</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="settings-dialog" aria-labelledby="settings-title">
+      <form method="dialog">
+        <h2 id="settings-title">Settings</h2>
+        <fieldset class="segmented">
+          <legend>Appearance</legend>
+          <label><input type="radio" name="mode" value="auto" /><span>Auto</span></label>
+          <label><input type="radio" name="mode" value="light" /><span>Light</span></label>
+          <label><input type="radio" name="mode" value="dark" /><span>Dark</span></label>
+        </fieldset>
+        <fieldset class="swatches">
+          <legend>Board</legend>
+          <label
+            ><input type="radio" name="board" value="walnut" /><span data-board="walnut"></span
+            >Walnut</label
+          >
+          <label
+            ><input type="radio" name="board" value="slate" /><span data-board="slate"></span
+            >Slate</label
+          >
+          <label
+            ><input type="radio" name="board" value="moss" /><span data-board="moss"></span
+            >Moss</label
+          >
+          <label
+            ><input type="radio" name="board" value="paper" /><span data-board="paper"></span
+            >Paper</label
+          >
+        </fieldset>
+        <fieldset class="checks">
+          <legend>Board options</legend>
+          <label><input type="checkbox" data-setting="sound" /> Sounds</label>
+          <label><input type="checkbox" data-setting="coordinates" /> Coordinates</label>
+          <label><input type="checkbox" data-setting="dots" /> Show legal moves</label>
+        </fieldset>
+        <p class="help">
+          Right-click and drag on the board to draw arrows; right-click a square to mark it. Hold
+          Shift, Alt or Ctrl for other colours. Arrow keys step through the moves; F flips the
+          board.
+        </p>
+        <p class="help">
+          Pieces by Colin M.L. Burnett,
+          <a href="https://creativecommons.org/licenses/by-sa/3.0/" rel="noopener">CC BY-SA 3.0</a>.
+        </p>
+        <div class="row end"><button type="submit">Close</button></div>
+      </form>
     </dialog>
 
     <script type="module" src="app.js"></script>
