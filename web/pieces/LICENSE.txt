@@ -10,3 +10,6 @@ Licence: Creative Commons Attribution-ShareAlike 3.0 Unported (CC BY-SA 3.0)
 Changes: files renamed (w* for white, b* for black) and the fixed
 width="45" height="45" replaced by viewBox="0 0 45 45" so they scale.
 These files remain under CC BY-SA 3.0; the rest of the project is MIT.
+
+The page icon (../icon.svg, ../icon-180.png) and the preview image
+(../preview.png) are drawn with these pieces and are under the same licence.
