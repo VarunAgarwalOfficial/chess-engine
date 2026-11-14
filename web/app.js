@@ -231,8 +231,9 @@ function render() {
 // ----- controls -----
 
 function startGame(fen = START_FEN) {
+  const fresh = new Game(fen); // throws on a bad FEN, leaving the game as it was
   cancelEngine();
-  game = new Game(fen);
+  game = fresh;
   selected = -1;
   infoEl.textContent = '';
   fenError.textContent = '';

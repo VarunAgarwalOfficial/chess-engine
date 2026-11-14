@@ -6,13 +6,13 @@ ahead with alpha-beta, and also speaks UCI so it can be plugged into any chess G
 ## The idea
 
 The original was a two-player chess board written in Python with Pygame in 2021. Its first version
-found legal moves the obvious way: try every move, then check whether the king is attacked. The
-rewrite that followed did something better. Before generating anything it looked outward from the
-king, recorded every check and every pinned piece, and then let each piece move only where those
-facts allowed, so no move had to be played and taken back to be judged. It came with a small
-script that counted positions several moves deep to see whether the generator was right, and an
-`ai.py` that got as far as an empty piece-square "map" and a loop to add it up. This version keeps
-that generator design, turns the counting script into a real test, and finishes the opponent.
+only listed where each piece could go and knew nothing about check. The rewrite that followed did
+the hard part properly: it looked outward from the king, recorded every check and every pinned
+piece, noted double check, and then let each piece move only where those facts allowed. It came
+with a small script that counted positions several moves deep to see whether the generator was
+right, and an `ai.py` that got as far as an empty piece-square "map" and a loop to add it up. This
+version keeps that generator design, turns the counting script into a real test, and finishes the
+opponent.
 
 ## How it works
 
@@ -103,17 +103,16 @@ npm run perft -- 4 "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQ
 ## Test
 
 ```
-npm test              # everything, about a second
+npm test              # about a second
 npm run test:deep     # perft to full published depth, a few seconds
 npm run lint
 npm run format:check
 ```
 
-The move generator is checked two ways: against the published node counts for the six standard
-perft positions, and against a second, naive generator (the original's first method) over
-thousands of random positions. Other tests cover each draw rule, hashing, notation, evaluation
-symmetry, forced mates, the basic endgame mates, the UCI program run as a real process, and the
-web server.
+The tests are few on purpose. The move generator is checked against the published node counts
+for the six standard perft positions, which exercises every rule of movement. The rest cover the
+ways a game ends, a handful of search results (forced mates, a basic endgame mate), and the UCI
+program run as a real process.
 
 ## Limits
 
