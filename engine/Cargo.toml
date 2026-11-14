@@ -1,0 +1,21 @@
+[package]
+name = "chess"
+version = "2.0.0"
+edition = "2021"
+description = "A chess engine: bitboards, legal move generation from king scans, alpha-beta search."
+license = "MIT"
+publish = false
+
+[lib]
+# rlib for the programs and tests, cdylib for the WebAssembly build.
+crate-type = ["rlib", "cdylib"]
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+
+# Perft and search tests are slow without optimisation.
+[profile.test]
+opt-level = 3
