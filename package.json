@@ -1,0 +1,30 @@
+{
+  "name": "chess",
+  "version": "1.0.0",
+  "description": "A chess engine and a browser board to play against it.",
+  "type": "module",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "chess-uci": "bin/uci.js"
+  },
+  "scripts": {
+    "start": "node bin/serve.js",
+    "uci": "node bin/uci.js",
+    "perft": "node bin/perft.js",
+    "test": "node --test test/",
+    "test:deep": "PERFT_DEEP=1 node --test test/perft.test.js",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.15.0",
+    "globals": "^17.14.0",
+    "prettier": "^3.10.1"
+  }
+}
