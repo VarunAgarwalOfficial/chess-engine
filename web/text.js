@@ -9,10 +9,40 @@ export function describeStatus(status, turn) {
   const { result, reason } = status;
   if (reason === 'checkmate') return `Checkmate. ${cap(result)} wins.`;
   if (reason === 'resignation') return `${cap(other(result))} resigned. ${cap(result)} wins.`;
-  if (reason === 'time') return `${cap(other(result))} ran out of time. ${cap(result)} wins.`;
+  if (reason === 'time') {
+    if (result === 'draw') return `${cap(status.side)} ran out of time. Draw.`;
+    return `${cap(other(result))} ran out of time. ${cap(result)} wins.`;
+  }
   if (reason === 'agreement') return 'Draw agreed.';
   if (reason === 'result') return result === 'draw' ? 'Draw.' : `${cap(result)} won.`;
   return `Draw by ${reason}.`;
+}
+
+const WHY = {
+  checkmate: () => 'By checkmate.',
+  resignation: ({ result }) => `${cap(other(result))} resigned.`,
+  agreement: () => 'Both sides agreed to a draw.',
+  stalemate: () => 'Stalemate: the side to move has no legal move and is not in check.',
+  'insufficient material': () => 'Neither side has enough pieces left to give mate.',
+  'fifty-move rule': () => 'Fifty moves by each side passed without a capture or a pawn move.',
+  'threefold repetition': () => 'The same position came up three times.',
+  time: ({ result, side }) =>
+    result === 'draw'
+      ? `${cap(side)} ran out of time, but ${cap(other(side))} has too little left to give mate.`
+      : `${cap(other(result))} ran out of time.`,
+};
+
+// A finished game in two parts, for the player on `side` ('white', 'black',
+// or 'both' when nobody in particular is asking): { title, detail }.
+export function describeOutcome(status, side) {
+  const { result, reason } = status;
+  let title = 'Draw';
+  if (result !== 'draw') {
+    title = side === 'both' ? `${cap(result)} wins` : result === side ? 'You won' : 'You lost';
+  } else if (reason === 'threefold repetition') title = 'Draw by repetition';
+  else if (reason === 'fifty-move rule') title = 'Draw by the fifty-move rule';
+  else if (reason === 'stalemate') title = 'Draw by stalemate';
+  return { title, detail: WHY[reason]?.(status) ?? '' };
 }
 
 // Moves with their numbers, starting from the position the FEN gives:

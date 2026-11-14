@@ -37,7 +37,9 @@ export class Board {
     this.marks = new Map(); // drawn by the player with the right button
     this.arrows = []; // drawn by the page: hint, better move
     this.drag = null;
-    this.marking = null;
+    this.marking = null; // an arrow or mark being drawn: { from, to, colour, primary }
+    this.markMode = false; // the main button draws instead of moving
+    this.press = null; // a finger held down, which may become a long press
     this.elements = new Map(); // square -> piece element
 
     root.tabIndex = 0;
@@ -61,7 +63,12 @@ export class Board {
     root.addEventListener('pointerdown', (e) => this.onDown(e));
     root.addEventListener('pointermove', (e) => this.onMove(e));
     root.addEventListener('pointerup', (e) => this.onUp(e));
-    root.addEventListener('pointercancel', () => this.endDrag(null));
+    root.addEventListener('pointercancel', () => {
+      this.endPress();
+      this.marking = null;
+      this.endDrag(null);
+      this.drawMarks();
+    });
     root.addEventListener('contextmenu', (e) => e.preventDefault());
     root.addEventListener('keydown', (e) => this.onKey(e));
     root.addEventListener('focus', () => {
@@ -138,6 +145,16 @@ export class Board {
   setArrows(arrows) {
     this.arrows = arrows;
     this.drawMarks();
+  }
+
+  // In mark mode the main button, or a finger, draws arrows and marks.
+  setMarkMode(on) {
+    this.markMode = on;
+    this.root.classList.toggle('marking', on);
+    if (!on) return;
+    this.selected = null;
+    this.cancelPremove();
+    this.paint();
   }
 
   clearPieces() {
@@ -245,7 +262,17 @@ export class Board {
       this.marksEl.append(el);
     };
     this.marksEl.replaceChildren();
-    for (const { from, to, colour } of [...this.marks.values(), ...this.arrows]) {
+    const drawing = this.marking?.to ? [this.marking] : [];
+    for (const { from, to, colour } of [...this.marks.values(), ...this.arrows, ...drawing]) {
+      if (from === to) {
+        add('circle', {
+          class: `mark ${colour}`,
+          cx: centre(from)[0],
+          cy: centre(from)[1],
+          r: 0.44,
+        });
+        continue;
+      }
       const [x1, y1] = centre(from);
       if (!to) {
         add('circle', { class: `mark ${colour}`, cx: x1, cy: y1, r: 0.44 });
@@ -341,21 +368,30 @@ export class Board {
           : event.ctrlKey
             ? 'amber'
             : 'green';
-      this.marking = { from: square, colour };
+      this.marking = { from: square, to: square, colour };
       return;
     }
     if (event.button !== 0) return;
-    if (this.marks.size) {
-      this.marks.clear();
-      this.drawMarks();
+    const touch = event.pointerType !== 'mouse';
+    if (this.markMode && !this.edit) {
+      const colour = event.shiftKey ? 'red' : event.altKey ? 'blue' : 'green';
+      this.startMarking(square, colour, event);
+      return;
     }
+    // A mouse click clears what was drawn at once; a finger may be about
+    // to draw more, so that waits until it lifts.
+    if (!touch) this.clearMarks();
     const piece = this.pieces.get(square);
     if (this.edit) {
       this.drag = { from: square, el: piece && this.elements.get(square), event, moved: false };
       return;
     }
     const wasSelected = this.selected === square;
-    if (this.selected && !wasSelected && this.tryMove(this.selected, square)) return;
+    if (this.selected && !wasSelected && this.tryMove(this.selected, square)) {
+      this.clearMarks();
+      return;
+    }
+    if (touch) this.startPress(square, event);
     if (!piece || !this.canPick(piece)) {
       this.selected = null;
       this.cancelPremove();
@@ -369,6 +405,18 @@ export class Board {
   }
 
   onMove(event) {
+    if (this.marking) {
+      const to = this.squareAt(event) ?? this.marking.from;
+      if (to !== this.marking.to) {
+        this.marking.to = to;
+        this.drawMarks();
+      }
+      return;
+    }
+    if (this.press) {
+      const far = Math.hypot(event.clientX - this.press.x, event.clientY - this.press.y);
+      if (far >= 8) this.endPress();
+    }
     const drag = this.drag;
     if (!drag?.el) return;
     if (!drag.moved) {
@@ -379,6 +427,7 @@ export class Board {
       );
       if (far < slack) return;
       drag.moved = true;
+      this.endPress();
       try {
         this.root.setPointerCapture(event.pointerId);
       } catch {
@@ -401,18 +450,62 @@ export class Board {
   }
 
   onUp(event) {
-    if (event.button === 2 && this.marking) {
+    this.endPress();
+    if (this.marking && (event.button === 2 || this.marking.primary)) {
       const { from, colour } = this.marking;
       const to = this.squareAt(event);
       this.marking = null;
-      if (!to) return;
-      const key = from === to ? from : from + to;
-      if (this.marks.get(key)?.colour === colour) this.marks.delete(key);
-      else this.marks.set(key, { from, to: from === to ? null : to, colour });
+      if (to) {
+        const key = from === to ? from : from + to;
+        if (this.marks.get(key)?.colour === colour) this.marks.delete(key);
+        else this.marks.set(key, { from, to: from === to ? null : to, colour });
+      }
       this.drawMarks();
       return;
     }
+    if (event.pointerType !== 'mouse' && event.button === 0) this.clearMarks();
     if (this.drag) this.endDrag(this.squareAt(event));
+  }
+
+  clearMarks() {
+    if (!this.marks.size) return;
+    this.marks.clear();
+    this.drawMarks();
+  }
+
+  // ----- drawing with the main button or a finger -----
+
+  startMarking(square, colour, event) {
+    this.marking = { from: square, to: square, colour, primary: true };
+    try {
+      this.root.setPointerCapture(event.pointerId);
+    } catch {
+      // The pointer is already gone; the mark ends where it started.
+    }
+    this.drawMarks();
+  }
+
+  // A finger held still for a moment draws instead of moving a piece.
+  startPress(square, event) {
+    this.endPress();
+    const { clientX: x, clientY: y } = event;
+    const timer = setTimeout(() => {
+      this.press = null;
+      const drag = this.drag;
+      this.drag = null;
+      if (drag?.el) this.position(drag.el, drag.from);
+      if (!drag?.wasSelected) this.selected = null;
+      this.paint();
+      navigator.vibrate?.(12);
+      this.startMarking(square, 'green', event);
+    }, 450);
+    this.press = { x, y, timer };
+  }
+
+  endPress() {
+    if (!this.press) return;
+    clearTimeout(this.press.timer);
+    this.press = null;
   }
 
   endDrag(target) {

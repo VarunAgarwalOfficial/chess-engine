@@ -2,12 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { loadEngine } from '../web/engine.js';
-import { Game, boardField, parseBoard } from '../web/game.js';
+import { Game, boardField, cannotMate, parseBoard } from '../web/game.js';
 import { gameFromPgn, toPgn } from '../web/pgn.js';
-import { findOpening } from '../web/eco.js';
+import { LINES, findOpening } from '../web/eco.js';
 import { Clock, formatClock } from '../web/clock.js';
 import { formatScore, reviewMoves, whiteCp } from '../web/review.js';
-import { describeStatus, pickMove } from '../web/text.js';
+import { describeOutcome, describeStatus, pickMove } from '../web/text.js';
 
 // The real engine.wasm, loaded the way the page loads it.
 const engine = await loadEngine(await readFile(new URL('../web/engine.wasm', import.meta.url)));
@@ -97,6 +97,42 @@ test('the clock counts down for the side to move and adds the increment', () => 
   clock.restore(snapshot);
   assert.equal(clock.flagged(), null);
   assert.deepEqual([60000, 9400, 3725000].map(formatClock), ['1:00', '0:09.4', '1:02:05']);
+});
+
+test('a flag fall is a draw when the other side could never give mate', () => {
+  // Asked of the engine, with the side that ran out of time reduced to its king.
+  const rookVersusKnight = '4k3/8/8/8/8/8/R7/4K1n1 w - - 0 1';
+  assert.equal(cannotMate(engine, rookVersusKnight, 'black'), true);
+  assert.equal(cannotMate(engine, rookVersusKnight, 'white'), false);
+  // A pawn is enough, and so is a knight that is giving check at the time.
+  assert.equal(cannotMate(engine, '4k3/8/8/8/8/8/p6R/4K3 w - - 0 1', 'black'), false);
+  assert.equal(cannotMate(engine, '4k3/8/8/8/8/3n4/R7/4K3 w - - 0 1', 'black'), true);
+
+  const drawn = { over: true, result: 'draw', reason: 'time', side: 'white' };
+  assert.equal(describeStatus(drawn, 'white'), 'White ran out of time. Draw.');
+  assert.deepEqual(describeOutcome(drawn, 'white'), {
+    title: 'Draw',
+    detail: 'White ran out of time, but Black has too little left to give mate.',
+  });
+  const repeated = { over: true, result: 'draw', reason: 'threefold repetition' };
+  assert.equal(describeOutcome(repeated, 'black').title, 'Draw by repetition');
+  const lost = { over: true, result: 'black', reason: 'time' };
+  assert.deepEqual(describeOutcome(lost, 'white'), {
+    title: 'You lost',
+    detail: 'White ran out of time.',
+  });
+});
+
+test('every line of the opening table can be played', () => {
+  for (const [moves, { eco }] of LINES) {
+    const game = new Game(engine);
+    for (const word of moves.split(' ')) {
+      const move = game.legalMoves().find((m) => m.san.replace(/[+#]/g, '') === word);
+      assert.ok(move, `${eco}: ${word} in "${moves}"`);
+      game.play(move.uci);
+    }
+    assert.match(eco, /^[A-E]\d\d$/);
+  }
 });
 
 test('a weak level plays noisily but never passes up a mate', () => {

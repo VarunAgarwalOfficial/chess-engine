@@ -11,7 +11,8 @@ export const DEFAULTS = {
   sound: true,
   coordinates: true,
   dots: true,
-  analysis: true,
+  analysis: true, // when looking at a finished game or analysing
+  playAnalysis: false, // while playing the engine
 };
 
 function read(key, fallback) {

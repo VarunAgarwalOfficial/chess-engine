@@ -45,6 +45,26 @@ export function boardField(pieces) {
   return rows.join('/');
 }
 
+// Whether `side` ('white' or 'black') could never give mate with the
+// pieces it has, whatever the other side did. The engine is asked about the
+// same position with the other side reduced to its king.
+export function cannotMate(engine, fen, side) {
+  const colour = side[0];
+  const kept = [...parseBoard(fen)].filter(([, code]) => code[0] === colour || code[1] === 'k');
+  const field = boardField(new Map(kept));
+  // With the wrong side to move the position may be refused, or be a
+  // stalemate, which says nothing about the material.
+  for (const turn of [colour, colour === 'w' ? 'b' : 'w']) {
+    try {
+      const { reason } = engine.describe(`${field} ${turn} - - 0 1`);
+      if (reason !== 'stalemate') return reason === 'insufficient material';
+    } catch {
+      // Try with the other side to move.
+    }
+  }
+  return false;
+}
+
 export class Game {
   // Throws on a FEN the engine rejects.
   constructor(engine, fen = START_FEN) {

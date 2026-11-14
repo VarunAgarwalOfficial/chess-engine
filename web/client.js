@@ -35,10 +35,6 @@ export class EngineClient {
     }
   }
 
-  get busy() {
-    return this.pending !== null;
-  }
-
   // A running search cannot be interrupted, so the worker is replaced.
   cancel() {
     if (!this.pending) return;
