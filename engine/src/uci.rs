@@ -63,7 +63,7 @@ pub fn search_limits(go: &Go, side: usize) -> Limits {
         let moves_left = go.movestogo.filter(|&m| m > 0).map_or(25.0, |m| m as f64 + 1.0);
         let share = clock / moves_left + increment.unwrap_or(0) as f64 * 0.75;
         let available = (clock - 10.0).max(1.0);
-        limits.soft_time = Some((share * 0.6).min(available));
+        limits.soft_time = Some(share.min(available));
         limits.move_time = Some((share * 3.0).min(available * 0.5).max(1.0));
     }
     limits
