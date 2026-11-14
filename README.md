@@ -105,22 +105,36 @@ to analyse.
   points of winning chance.
 - PGN import drops comments, variations and annotations, then matches each word against
   the notation of the legal moves.
-- Opening names come from a hand-written table of about 170 lines in `eco.js` (its codes were
-  checked against the Lichess openings list where the same line appears there); a game is
-  named by the longest line its moves begin with.
-- Sounds are made with WebAudio; there are no audio files.
+- Opening names come from a table of about 175 lines in `eco.js`. Names and codes follow the
+  Lichess openings list (in British spelling); where a line is not listed under the same
+  moves, the entry for the same position reached another way is used. A game is named by the
+  longest line its moves begin with.
+- When a flag falls the page asks the engine about the same position with the flagged side
+  reduced to its king. If that is a draw by insufficient material, the other side could never
+  have mated, and the game is drawn.
+- The editor offers only the castling rights and en passant squares the engine keeps when
+  they are put to it, so what can be set is what can be played.
+- Sounds are made with WebAudio; there are no audio files. The typeface (Inter, latin subset)
+  is bundled, so the page looks the same on every system.
 
 ```
 engine/src/        the engine library (pure, tested)
 engine/src/bin/    uci.rs (UCI engine, perft, bench), match.rs (engine against engine)
 engine/tests/      perft, rules, search, the UCI program as a process
 web/               the page, and engine.wasm built from the library
-  app.js             holds the game and wires everything together
+  app.js             connects the controls to the modules and starts the first game
+  state.js           the game in hand, the settings, the engines
+  play.js            starting and saving games, moves, the engine's turn, the clock
+  view.js            draws the panel, the players and the review from the state
+  analysis.js        the running evaluation and the review of a game
+  editor.js          the board editor
+  dialogs.js         new game, saved games, FEN and PGN, settings, game over
   board.js           drawing, drag and drop, premoves, arrows, keyboard
   game.js            the moves played and the engine's description of each position
   engine.js, worker.js, client.js   the WebAssembly engine and its workers
-  pgn.js, eco.js, review.js, clock.js, text.js   pure logic
+  pgn.js, eco.js, review.js, clock.js, text.js, levels.js   pure logic and data
   sound.js, store.js   WebAudio and localStorage
+  fonts/             Inter, with its licence
   pieces/            the piece images, with their own licence
 bin/serve.js       a small web server for the page
 test/              the page's code against the real engine.wasm
@@ -143,16 +157,20 @@ On the page:
   with a finger. While the engine thinks you can line up your reply. With the board focused,
   Enter picks up and puts down and the arrow keys move between squares.
 - **Drawing.** Right-click and drag for an arrow, right-click a square to mark it; Shift, Alt
-  and Ctrl give other colours. A left click clears them.
+  and Ctrl give other colours. On a touch screen press and hold, then drag. The arrow button
+  makes every drag draw. A click or tap clears them.
 - **New game.** Play White, Black, a random side, or both sides for two players at one board
-  as in the original. Eight engine levels from beginner to full strength. No clock, or one of
-  seven time controls.
+  as in the original. Eight engine levels, from very easy to full strength, each described
+  in a line; they are not matched to ratings. No clock, or one of seven time controls.
 - **During a game.** Takeback, hint, offer a draw (the engine accepts when it stands worse),
-  resign. The evaluation bar and the engine's line can be switched off.
-- **Looking back.** Click a move or use the arrow keys; F flips the board. Review marks
-  inaccuracies, mistakes and blunders and shows the better move. A move made while looking
-  back at a finished game starts a new game from that point.
-- **Position.** Copy or load FEN and PGN. The editor sets up any position the engine accepts.
+  resign. The engine's evaluation is hidden while you play it, unless you switch it on. When
+  the game ends a dialog says how, and offers a rematch, a review and the PGN.
+- **Looking back.** Click a move or use the arrow keys; F flips the board, M mutes. Review
+  marks inaccuracies, mistakes and blunders, shows the better move as an arrow, and draws the
+  evaluation as a graph that can be clicked to jump. A move made while looking back at a
+  finished game starts a new game from that point.
+- **Position.** Copy or load FEN and PGN. The editor sets up any position the engine accepts,
+  with castling rights and an en passant square, and says what is wrong with one it does not.
   A position can also be given by URL: `/web/?side=black&fen=...`.
 - **Games** are kept in the browser's localStorage and can be reopened from the list.
 - **Settings.** Light or dark, four board colours, sounds, coordinates, legal-move dots.
@@ -206,13 +224,15 @@ for the six standard perft positions, which exercises every rule of movement. Th
 ways a game ends, a handful of search results (forced mates, a basic endgame mate, an
 evaluation that is the same for both colours), the UCI program run as a real process, and the
 page's logic against the real `engine.wasm`: a game played through it, PGN out and back, the
-review's marks, the clock, and the weak levels' choice of move.
+review's marks, the clock, a flag fall that is a draw, every line of the opening table, and
+the weak levels' choice of move.
 
 ## Limits
 
 Draws by repetition and the fifty-move rule are applied automatically rather than claimed. A
-flag falls even when the other side could never mate. PGN import reads the first game and
-only its main line. Arrows cannot be drawn on a touch screen. The engine levels are not
+flag fall is a draw only when the other side has a bare king or a single minor piece, which
+is simpler than the full rule. PGN import reads the first game and
+only its main line. The engine levels are not
 calibrated to ratings. The engine has no opening book or endgame tables, and searches on one thread. The evaluation is
 hand written and its weights are untuned; it knows nothing about king safety, which was tried
 and did not show a gain. Its strength was measured only
@@ -223,4 +243,6 @@ says what that does and does not mean).
 
 Based on the Pygame chess game by Varun Agarwal, 2021. Piece-square tables are PeSTO's, by
 Ronald Friederich. The chess pieces are by Cburnett, from Wikimedia Commons, under
-CC BY-SA 3.0 (`web/pieces/LICENSE.txt`); the rest of the project is under the MIT licence.
+CC BY-SA 3.0 (`web/pieces/LICENSE.txt`). The typeface is Inter, by Rasmus Andersson, under the
+SIL Open Font License (`web/fonts/LICENSE.txt`). Opening names follow the Lichess openings
+list (CC0). The rest of the project is under the MIT licence.
