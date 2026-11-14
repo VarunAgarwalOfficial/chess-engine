@@ -279,3 +279,68 @@ the forum threads on network sizes were not read.
 | Singular extensions (7) | Stockfish 16 `search.cpp`; https://www.chessprogramming.org/Singular_Extensions (no numbers on the page) | Conditions, margin proportional to depth, half-depth verification search, multi-cut, negative extension |
 | Network (9) | Yu Nasu, "Efficiently Updatable Neural-Network-based Evaluation Functions for Computer Shogi" (2018), English translation: https://github.com/asdfjkl/nnue/blob/main/nnue_en.pdf ; Stockfish NNUE notes: https://github.com/official-stockfish/nnue-pytorch/blob/master/docs/nnue.md ; bullet trainer `examples/simple.rs` and `docs/1-basics.md`: https://github.com/jw1912/bullet | The accumulator and its incremental update; clipped units and integer scaling (255 and 64); target blended from result and score |
 | Not tried | https://www.chessprogramming.org/ProbCut ; https://www.chessprogramming.org/Internal_Iterative_Reductions ; https://www.chessprogramming.org/Pawn_Hash_Table ; https://www.chessprogramming.org/Lazy_SMP | Read for the list of what is still missing, below |
+
+### Result: head-to-head and absolute
+
+Same conditions as the first round's absolute measurement: 10 s + 0.1 s, 64 MB hash, one
+thread each, four games at a time, the runner's openings and adjudication. The machine was
+heavily loaded throughout (load average 20 to 75), unlike in the first round, so the baseline
+engine (commit `acb2bbd`) was measured again the same afternoon as a control, on the same
+seeds.
+
+| Match | Games | Seed | Result | Score | Elo difference, 95% interval | Implied rating |
+| ----- | ----: | ---: | ------ | ----: | ---------------------------- | -------------: |
+| New v baseline | 100 | 5 | +48 =32 −20 | 64.0% | **+100, +44 to +161** | |
+| New v Stockfish `UCI_Elo` 2750 | 80 | 3 | +40 =13 −27 | 58.1% | +57, 0 to +117 | 2807 |
+| New v Stockfish `UCI_Elo` 2850 | 100 | 2 | +31 =20 −49 | 41.0% | −63, −131 to 0 | 2787 |
+| Baseline v Stockfish 2750 (control) | 80 | 3 | +37 =14 −29 | 55.0% | +35, −35 to +107 | 2785 |
+| Baseline v Stockfish 2850 (control) | 100 | 2 | +34 =18 −48 | 43.0% | −49, −112 to +11 | 2801 |
+
+One fault in all of these: Stockfish lost one game on time against the new version at 2850,
+which is counted as a win for the new version.
+
+**New estimate: about 2800 on Stockfish's `UCI_Elo` scale at 10 s + 0.1 s, 95% interval
+roughly 2750 to 2845** (2807 and 2787 from 180 games, bracketed: above half at 2750, below
+half at 2850). All the caveats of the first round about what that scale means still apply.
+
+**The gain is +100 Elo in direct play against the baseline, and not visible against
+Stockfish.** Measured the same afternoon, the baseline comes out at about 2795 (2785 and
+2801) and the new version at about 2797: a difference of a few points with an uncertainty of
+about ±65. Against the first round's 2760 for the baseline the new figure is +40, but that
+compares a quiet machine with a loaded one. So:
+
+- Head-to-head, the new version is clearly stronger: +44 at the least, at the 95% level.
+- Against the strength-limited Stockfish, 180 games a side cannot tell the two apart. A true
+  gain of anything from nothing to about +60 on that scale fits the data.
+- Both can be true. Self-play is known to exaggerate differences, as the first round already
+  said, and a limited Stockfish is an odd opponent: it searches well and then throws in weak
+  moves, so the result depends a good deal on things the changes here did not touch. The
+  honest claim is "+100 against its former self, +0 to +60 against others".
+
+Compute used in this round, wall time at four threads or fewer: about 60 minutes of SPRT
+matches, 8.5 minutes of data generation, about 2 minutes of tuning and training, about
+60 minutes for the five matches in the table above; about 2 hours 20 minutes in all.
+
+### What is still missing compared with top engines
+
+- A trained network evaluation. This is by far the largest gap (several hundred Elo), and
+  what it needs is written above.
+- Search: the three standard ideas that failed here (table use in quiescence, continuation
+  and capture histories, singular extensions) work in every strong engine, so the likely
+  fault is in how they interact with this search or in testing at very fast controls on a
+  loaded machine. Also absent: ProbCut, a table with buckets and ageing, history-based
+  pruning, a pawn hash table, node-share and stability-based clock use beyond what is there.
+- Several threads (Lazy SMP), an opening book, endgame tables, pondering.
+- Testing capacity. Top engines accept changes on tens of thousands of games with bounds like
+  [0, 2]; tests here could only see gains of about 20 Elo and more.
+
+### Next three steps
+
+1. Generate about 100 million positions overnight (`datagen`, ten hours on four threads),
+   train a 768 → 128×2 → 1 network with `train`, and accept it only by SPRT against the
+   hand-written evaluation.
+2. Re-test the three failed search ideas one at a time on a quiet machine at 2 s + 0.02 s or
+   slower with a cap of 2,000 games, starting with a bucketed, aged transposition table,
+   which the quiescence probe probably depends on.
+3. Measure against two or three ordinary engines of known rating (not a weakened Stockfish)
+   so that the absolute figure and the gains stop depending on one unusual opponent.
