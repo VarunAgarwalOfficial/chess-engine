@@ -15,3 +15,4 @@ pub mod search;
 pub mod tt;
 pub mod uci;
 pub mod wasm;
+pub mod weights;
