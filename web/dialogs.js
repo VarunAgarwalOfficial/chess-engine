@@ -24,6 +24,8 @@ export function openNewGame() {
   $('from-position').hidden = !state.pendingFen;
   $('use-position').checked = true;
   syncNewGame();
+  // Escape and a click outside leave the last value in place.
+  $('new-dialog').returnValue = '';
   $('new-dialog').showModal();
 }
 

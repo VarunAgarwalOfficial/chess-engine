@@ -391,8 +391,8 @@ export class Board {
       this.clearMarks();
       return;
     }
-    if (touch) this.startPress(square, event);
     if (!piece || !this.canPick(piece)) {
+      if (touch) this.startPress(square, event);
       this.selected = null;
       this.cancelPremove();
       this.paint();
@@ -427,7 +427,6 @@ export class Board {
       );
       if (far < slack) return;
       drag.moved = true;
-      this.endPress();
       try {
         this.root.setPointerCapture(event.pointerId);
       } catch {
@@ -485,17 +484,13 @@ export class Board {
     this.drawMarks();
   }
 
-  // A finger held still for a moment draws instead of moving a piece.
+  // A finger held still for a moment starts drawing. Only on squares with
+  // nothing to pick up, so that holding a piece never loses a move.
   startPress(square, event) {
     this.endPress();
     const { clientX: x, clientY: y } = event;
     const timer = setTimeout(() => {
       this.press = null;
-      const drag = this.drag;
-      this.drag = null;
-      if (drag?.el) this.position(drag.el, drag.from);
-      if (!drag?.wasSelected) this.selected = null;
-      this.paint();
       navigator.vibrate?.(12);
       this.startMarking(square, 'green', event);
     }, 450);

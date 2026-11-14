@@ -33,8 +33,8 @@ export function editorFen() {
 }
 
 // What the engine keeps of every castling right and en passant square
-// offered to it: { castling: Set, ep: [squares] }. Nothing, when it
-// rejects the board.
+// offered to it: { castling: Set, ep: [squares] }, or null when it rejects
+// the board.
 function allowed() {
   try {
     const castling = new Set(rules.describe(fenWith('KQkq', '-')).fen.split(' ')[2]);
@@ -44,7 +44,7 @@ function allowed() {
       .filter((square) => rules.describe(fenWith('', square)).fen.split(' ')[3] === square);
     return { castling, ep };
   } catch {
-    return { castling: new Set(), ep: [] };
+    return null;
   }
 }
 
@@ -128,8 +128,10 @@ export function editorClick(square) {
 
 export function renderEditor() {
   const { editor } = state;
-  // Rights and squares the position can no longer carry are let go.
-  const can = allowed();
+  // Rights and squares the position can no longer carry are let go. A
+  // board the engine rejects keeps what it had until it is put right.
+  const answer = allowed();
+  const can = answer ?? { castling: new Set('KQkq'), ep: [editor.ep].filter((sq) => sq !== '-') };
   editor.castling = new Set([...editor.castling].filter((right) => can.castling.has(right)));
   if (!can.ep.includes(editor.ep)) editor.ep = '-';
 
@@ -170,9 +172,10 @@ export function renderEditor() {
     label.append(radio, make('span', '', square === '-' ? 'None' : square));
     options.append(label);
   }
-  $('ep-help').textContent = can.ep.length
-    ? ''
-    : `No pawn of ${cap(sides[editor.turn])}'s stands beside one that could just have moved two squares.`;
+  $('ep-help').textContent =
+    can.ep.length || !answer
+      ? ''
+      : `Not possible here: no ${cap(sides[editor.turn])} pawn stands beside a pawn that could just have moved two squares.`;
 
   if (document.activeElement !== $('editor-fen')) $('editor-fen').value = editorFen();
   const problem = editorProblem();

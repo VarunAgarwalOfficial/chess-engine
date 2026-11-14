@@ -157,8 +157,8 @@ On the page:
   with a finger. While the engine thinks you can line up your reply. With the board focused,
   Enter picks up and puts down and the arrow keys move between squares.
 - **Drawing.** Right-click and drag for an arrow, right-click a square to mark it; Shift, Alt
-  and Ctrl give other colours. On a touch screen press and hold, then drag. The arrow button
-  makes every drag draw. A click or tap clears them.
+  and Ctrl give other colours. On a touch screen press and hold a square that has no
+  piece of yours, then drag; the arrow button makes every drag draw. A click or tap clears them.
 - **New game.** Play White, Black, a random side, or both sides for two players at one board
   as in the original. Eight engine levels, from very easy to full strength, each described
   in a line; they are not matched to ratings. No clock, or one of seven time controls.

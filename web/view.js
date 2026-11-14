@@ -27,7 +27,23 @@ export function clearNote() {
   $('note').textContent = '';
 }
 
+// Lists that are rebuilt on every draw, and what in each takes the focus
+// back when the element that had it is gone.
+const REBUILT = {
+  moves: '[tabindex="0"]',
+  'ep-options': 'input:checked',
+  'review-comment': 'button',
+};
+
 export function render(animate = true) {
+  const focused = document.activeElement?.closest('#moves, #ep-options, #review-comment')?.id;
+  draw(animate);
+  if (!focused || $(focused).contains(document.activeElement)) return;
+  const next = $(focused).querySelector(REBUILT[focused]) ?? $('review-graph');
+  next.focus({ preventScroll: true });
+}
+
+function draw(animate) {
   const editing = Boolean(state.editor);
   document.body.classList.toggle('editing', editing);
   $('play-panel').hidden = editing;
