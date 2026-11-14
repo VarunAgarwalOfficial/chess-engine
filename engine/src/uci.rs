@@ -129,7 +129,7 @@ mod program {
     use crate::movegen::perft;
     use crate::search::Searcher;
     use std::io::BufRead;
-    use std::sync::atomic::Ordering;
+    use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::{Arc, Mutex};
     use std::thread::{self, JoinHandle};
     use std::time::Duration;
@@ -182,12 +182,21 @@ mod program {
         let mut pos = Position::start();
         let mut worker: Option<JoinHandle<()>> = None;
         let mut infinite = false;
+        let searching = Arc::new(AtomicBool::new(false));
 
         for line in std::io::stdin().lock().lines() {
             let Ok(line) = line else { break };
             let tokens: Vec<&str> = line.split_whitespace().collect();
             let Some(&command) = tokens.first() else { continue };
-            let busy = worker.as_ref().is_some_and(|w| !w.is_finished());
+            // The worker clears `searching` just before it prints its move, so
+            // a command sent in reply to "bestmove" never finds it busy; all
+            // that is left of the thread by then is to end, which is awaited.
+            let busy = searching.load(Ordering::Acquire);
+            if !busy {
+                if let Some(worker) = worker.take() {
+                    let _ = worker.join();
+                }
+            }
             match command {
                 "uci" => {
                     println!("id name {ENGINE_NAME}");
@@ -225,7 +234,9 @@ mod program {
                     let limits = search_limits(&go, pos.side);
                     infinite = go.infinite;
                     stop.store(false, Ordering::Relaxed);
-                    let (searcher, stop, mut pos) = (searcher.clone(), stop.clone(), pos.clone());
+                    searching.store(true, Ordering::Release);
+                    let (searcher, stop, searching, mut pos) =
+                        (searcher.clone(), stop.clone(), searching.clone(), pos.clone());
                     worker = Some(thread::spawn(move || {
                         let mut searcher = searcher.lock().expect("searcher lock");
                         let outcome = searcher.search(&mut pos, &limits, &mut |info| println!("{}", format_info(info)));
@@ -234,6 +245,8 @@ mod program {
                         while go.infinite && !stop.load(Ordering::Relaxed) {
                             thread::sleep(Duration::from_millis(1));
                         }
+                        drop(searcher);
+                        searching.store(false, Ordering::Release);
                         println!("bestmove {}", outcome.best.map_or("0000".into(), move_to_uci));
                     }));
                 }
