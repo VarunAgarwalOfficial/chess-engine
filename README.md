@@ -213,10 +213,11 @@ review's marks, the clock, and the weak levels' choice of move.
 Draws by repetition and the fifty-move rule are applied automatically rather than claimed. A
 flag falls even when the other side could never mate. PGN import reads the first game and
 only its main line. Arrows cannot be drawn on a touch screen. The engine levels are not
-calibrated to ratings. The
-engine has no opening book or endgame tables, and searches on one thread. The evaluation is
+calibrated to ratings. The engine has no opening book or endgame tables, and searches on one thread. The evaluation is
 hand written and its weights are untuned; it knows nothing about king safety, which was tried
-and did not show a gain. Its strength on an absolute scale has not been measured.
+and did not show a gain. Its strength was measured only
+against strength-limited Stockfish in 10-second games (about 2760 on that scale; `STRENGTH.md`
+says what that does and does not mean).
 
 ## Credit
 
