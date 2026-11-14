@@ -1,0 +1,301 @@
+:root {
+  /* Board colours are the ones the original 2021 game used. */
+  --light: rgb(241, 218, 179);
+  --dark: rgb(182, 136, 96);
+  --select: #00bcd4;
+  --page: #f6f4f0;
+  --ink: #23201c;
+  --muted: #6f685f;
+  --rule: #ddd7cd;
+  --surface: #ffffff;
+  --board-size: min(92vw, 100vh - 3rem, 640px);
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --page: #1c1a18;
+    --ink: #ece7df;
+    --muted: #a39b90;
+    --rule: #3a3632;
+    --surface: #26231f;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font:
+    16px/1.45 system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+}
+
+main {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 1.5rem 1rem;
+}
+
+.board {
+  width: var(--board-size);
+  height: var(--board-size);
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(8, 1fr);
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.25);
+  user-select: none;
+}
+
+.square {
+  position: relative;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  margin: 0;
+  background: var(--light);
+  cursor: default;
+  font: inherit;
+}
+
+.square.dark {
+  background: var(--dark);
+}
+
+.square.movable,
+.square.target {
+  cursor: pointer;
+}
+
+.square:focus-visible {
+  outline: 3px solid var(--select);
+  outline-offset: -3px;
+  z-index: 1;
+}
+
+.square.last {
+  box-shadow: inset 0 0 0 100vmax rgb(245 215 60 / 0.42);
+}
+
+.square.selected {
+  box-shadow: inset 0 0 0 100vmax rgb(0 188 212 / 0.6);
+}
+
+.square.check {
+  background-image: radial-gradient(circle, rgb(220 40 30 / 0.85) 0%, rgb(220 40 30 / 0) 72%);
+}
+
+/* A dot on an empty square you can move to, a ring on a piece you can take. */
+.square.target::after {
+  content: '';
+  position: absolute;
+  inset: 36%;
+  border-radius: 50%;
+  background: rgb(0 60 70 / 0.38);
+}
+
+.square.target.capture::after {
+  inset: 5%;
+  background: none;
+  border: calc(var(--board-size) / 110) solid rgb(0 60 70 / 0.42);
+}
+
+.piece {
+  position: absolute;
+  inset: 4%;
+  width: 92%;
+  height: 92%;
+  pointer-events: none;
+}
+
+.piece.white {
+  --piece-fill: #fbf9f4;
+  --piece-line: #2a2622;
+  --piece-detail: #2a2622;
+}
+
+.piece.black {
+  --piece-fill: #34302c;
+  --piece-line: #0f0d0c;
+  --piece-detail: #e9e3d8;
+}
+
+/* File letters and rank numbers in the edge squares. */
+.square[data-file]::before,
+.square[data-rank] > .rank {
+  position: absolute;
+  font-size: calc(var(--board-size) / 55);
+  font-weight: 600;
+  line-height: 1;
+  color: rgb(140, 98, 62);
+  pointer-events: none;
+}
+
+.square.dark[data-file]::before,
+.square.dark[data-rank] > .rank {
+  color: var(--light);
+}
+
+.square[data-file]::before {
+  content: attr(data-file);
+  right: 4%;
+  bottom: 4%;
+}
+
+.square[data-rank] > .rank {
+  left: 4%;
+  top: 4%;
+}
+
+.panel {
+  width: min(92vw, 20rem);
+}
+
+h1 {
+  margin: 0 0 0.5rem;
+  font-size: 1.5rem;
+  font-weight: 650;
+}
+
+h2 {
+  margin: 1.25rem 0 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.status {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 550;
+  min-height: 1.5em;
+}
+
+.engine-info {
+  margin: 0.15rem 0 1rem;
+  min-height: 1.4em;
+  font-size: 0.875rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+label {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+select,
+button,
+input {
+  font: inherit;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 0.4rem 0.6rem;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  border-color: var(--muted);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.moves {
+  list-style: none;
+  margin: 0;
+  padding: 0.25rem 0.5rem;
+  height: 13rem;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.moves li {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr 1fr;
+  padding: 0.1rem 0;
+}
+
+.moves .number {
+  color: var(--muted);
+}
+
+.fen {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.fen input {
+  flex: 1;
+  min-width: 0;
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.75rem;
+}
+
+.error {
+  margin: 0.35rem 0 0;
+  min-height: 1.3em;
+  font-size: 0.875rem;
+  color: #c0392b;
+}
+
+dialog {
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 0.75rem;
+  background: var(--surface);
+}
+
+dialog::backdrop {
+  background: rgb(0 0 0 / 0.35);
+}
+
+.promotion-choices {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.promotion-choices button {
+  position: relative;
+  width: 4.5rem;
+  height: 4.5rem;
+  background: var(--light);
+}

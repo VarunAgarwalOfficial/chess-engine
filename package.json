@@ -6,13 +6,13 @@
   "private": true,
   "license": "MIT",
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "bin": {
     "chess-uci": "bin/uci.js"
   },
   "scripts": {
-    "start": "node bin/serve.js",
+    "start": "node --env-file-if-exists=.env bin/serve.js",
     "uci": "node bin/uci.js",
     "perft": "node bin/perft.js",
     "test": "node --test test/",
