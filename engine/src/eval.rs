@@ -35,7 +35,13 @@ pub const ROOK_OPEN_FILE: usize = 10;
 pub const ROOK_HALF_OPEN_FILE: usize = 11;
 /// Four features, knight to queen: per square of mobility beyond a typical count.
 pub const MOBILITY: usize = 12;
-pub const FEATURES: usize = 16;
+/// Four features, knight to queen: squares attacked next to the enemy king.
+pub const KING_ATTACK: usize = 16;
+/// Our pawns on the squares in front of our king.
+pub const KING_SHIELD: usize = 20;
+/// Files at or beside our king that hold none of our pawns.
+pub const KING_OPEN_FILE: usize = 21;
+pub const FEATURES: usize = 22;
 
 const TYPICAL_MOBILITY: [i32; 5] = [0, 4, 6, 7, 13];
 
@@ -81,6 +87,24 @@ pub fn terms(pos: &Position, us: usize, add: &mut impl FnMut(usize, i32)) {
         }
     }
 
+    // King safety: the pawns in front of our king and the files open
+    // towards it; attacks on the enemy king are counted with mobility below.
+    let king = pos.king_square(us);
+    let ring = king_attacks(king) | bit(king);
+    let (front, ahead) = if us == WHITE {
+        (ring << 8, (!0u64 << 8).checked_shl(king as u32 / 8 * 8).unwrap_or(0))
+    } else {
+        (ring >> 8, (1u64 << (king / 8 * 8)) - 1)
+    };
+    add(KING_SHIELD, (our_pawns & (ring | front) & ahead).count_ones() as i32);
+    for file in (king & 7).saturating_sub(1)..=((king & 7) + 1).min(7) {
+        if our_pawns & (FILE_A << file) == 0 {
+            add(KING_OPEN_FILE, 1);
+        }
+    }
+    let their_king = pos.king_square(them);
+    let their_ring = king_attacks(their_king) | bit(their_king);
+
     // Mobility: squares each piece can go to that are not held by our own
     // pawns or king and not covered by an enemy pawn.
     let area = !(our_pawns | pos.pieces[KING] & ours | pawn_attack_set(them, their_pawns));
@@ -93,6 +117,10 @@ pub fn terms(pos: &Position, us: usize, add: &mut impl FnMut(usize, i32)) {
                 _ => bishop_attacks(sq, occupied) | rook_attacks(sq, occupied),
             };
             add(MOBILITY + piece - 1, (attacks & area).count_ones() as i32 - TYPICAL_MOBILITY[piece]);
+            let near = (attacks & their_ring).count_ones() as i32;
+            if near != 0 {
+                add(KING_ATTACK + piece - 1, near);
+            }
         }
     }
 }
