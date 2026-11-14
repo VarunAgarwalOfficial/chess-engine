@@ -261,3 +261,21 @@ about 10 hours of generation on four threads here**, then minutes of training, w
 layer widened to 128 or 256. A first sign of life (a network within 50 Elo of the hand-written
 evaluation) could reasonably be looked for at 20 to 30 million positions, two to three hours.
 Positions should then come from deeper searches than 5,000 nodes as well.
+
+### What was read
+
+Pages that were actually fetched and read during this work, with the idea each one informed.
+Pages that could not be fetched are listed as such. Buro's ProbCut paper, the web archive and
+the forum threads on network sizes were not read.
+
+| Idea (row above) | Source | What was taken from it |
+| ---------------- | ------ | ---------------------- |
+| SPRT | Michel Van den Bergh, "The generalised SPRT approximation": https://cantate.be/Fishtest/GSPRT_approximation.pdf ; Fishtest `LLRcalc.py`: https://raw.githubusercontent.com/official-stockfish/fishtest/master/server/fishtest/stats/LLRcalc.py ; https://www.chessprogramming.org/Sequential_Probability_Ratio_Test | LLR ≈ ½ (s1 − s0)(2ŝ − s0 − s1) / (V/N) over game pairs; bounds ±2.94 for 5% errors |
+| Texel tuning (3, 4, 5, 8, 10) | https://www.chessprogramming.org/Texel's_Tuning_Method | The loss, K fitted once and held. The page tunes on quiescence scores of all positions and found dropping "noisy" ones worse; here positions were filtered at generation instead, which is a difference |
+| Quiescence table probe (1); table replacement | https://www.chessprogramming.org/Transposition_Table ; Stockfish 16 `tt.cpp`, `search.cpp` (https://github.com/official-stockfish/Stockfish, tag `sf_16`) | Cut at any stored depth in quiescence; Stockfish replaces by depth and age within three-entry clusters, which this engine does not do |
+| Histories (2) | https://www.chessprogramming.org/History_Heuristic ; https://www.chessprogramming.org/Countermove_Heuristic ; https://www.chessprogramming.org/Late_Move_Reductions ; Stockfish 16 `movepick.h`; Ethereal `search.c` (https://github.com/AndyGrant/Ethereal) | Table shapes ([piece][to][captured], [previous piece][to][piece][to]), the bounded "gravity" update, history steering reductions |
+| King safety (5) | https://www.chessprogramming.org/King_Safety | King zone and attack counting by piece type. The page's table of attack units is not linear; the linear version here is what the tuner can fit |
+| Clock (6, 11) | https://www.chessprogramming.org/Time_Management ; Ethereal `timeman.c`; Stockfish 16 `timeman.cpp` | Ethereal aims at about clock/20 a move, twice what this engine spent; also best-move stability and node-share scaling, not yet tried |
+| Singular extensions (7) | Stockfish 16 `search.cpp`; https://www.chessprogramming.org/Singular_Extensions (no numbers on the page) | Conditions, margin proportional to depth, half-depth verification search, multi-cut, negative extension |
+| Network (9) | Yu Nasu, "Efficiently Updatable Neural-Network-based Evaluation Functions for Computer Shogi" (2018), English translation: https://github.com/asdfjkl/nnue/blob/main/nnue_en.pdf ; Stockfish NNUE notes: https://github.com/official-stockfish/nnue-pytorch/blob/master/docs/nnue.md ; bullet trainer `examples/simple.rs` and `docs/1-basics.md`: https://github.com/jw1912/bullet | The accumulator and its incremental update; clipped units and integer scaling (255 and 64); target blended from result and score |
+| Not tried | https://www.chessprogramming.org/ProbCut ; https://www.chessprogramming.org/Internal_Iterative_Reductions ; https://www.chessprogramming.org/Pawn_Hash_Table ; https://www.chessprogramming.org/Lazy_SMP | Read for the list of what is still missing, below |
