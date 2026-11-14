@@ -12,6 +12,7 @@ pub fn now_ms() -> f64 {
 #[cfg(target_arch = "wasm32")]
 #[allow(unsafe_code)]
 pub fn now_ms() -> f64 {
+    #[link(wasm_import_module = "env")]
     extern "C" {
         fn now() -> f64;
     }

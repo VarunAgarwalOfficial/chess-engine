@@ -43,9 +43,17 @@ const SHAPES = {
     <path ${LINE} d="M22.5 18.5 V31 M12 35.5 H33"/>`,
 };
 
-export const PIECE_NAMES = ['', 'pawn', 'knight', 'bishop', 'rook', 'queen', 'king'];
+// Keyed by the piece's letter in FEN and in move text.
+export const PIECE_NAMES = {
+  p: 'pawn',
+  n: 'knight',
+  b: 'bishop',
+  r: 'rook',
+  q: 'queen',
+  k: 'king',
+};
 
-// type is 1-6 as in the engine; colour is 'white' or 'black'.
-export function pieceSvg(type, colour) {
-  return `<svg class="piece ${colour}" viewBox="0 0 45 45" aria-hidden="true" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">${SHAPES[PIECE_NAMES[type]]}</svg>`;
+// letter is one of "pnbrqk"; colour is 'white' or 'black'.
+export function pieceSvg(letter, colour) {
+  return `<svg class="piece ${colour}" viewBox="0 0 45 45" aria-hidden="true" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">${SHAPES[PIECE_NAMES[letter]]}</svg>`;
 }

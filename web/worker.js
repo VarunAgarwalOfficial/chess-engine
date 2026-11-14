@@ -1,14 +1,14 @@
 // The engine, off the main thread, so the page stays responsive while it
 // thinks. One request in, one answer out.
 
-import { Searcher } from '../src/engine/search.js';
-import { runSearchJob } from '../src/engine/search-job.js';
+import { loadEngine } from './engine.js';
 
-const searcher = new Searcher();
+const engine = loadEngine(new URL('./engine.wasm', import.meta.url));
 
-self.onmessage = ({ data }) => {
+self.onmessage = async ({ data }) => {
   try {
-    self.postMessage({ id: data.id, result: runSearchJob(searcher, data.job) });
+    const result = (await engine).think(data.fen, data.moves, data.milliseconds);
+    self.postMessage({ id: data.id, result });
   } catch (error) {
     self.postMessage({ id: data.id, error: error.message });
   }

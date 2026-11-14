@@ -8,13 +8,14 @@ import { extname, join, normalize, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
-// Only the page and the code it imports are served.
-const PUBLIC = ['web', 'src'];
+// Only the page is served.
+const PUBLIC = ['web'];
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.svg': 'image/svg+xml',
+  '.wasm': 'application/wasm',
 };
 
 export function resolvePath(urlPath) {

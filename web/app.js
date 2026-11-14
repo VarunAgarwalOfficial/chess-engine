@@ -1,21 +1,9 @@
 // The page: draws the board, takes clicks, and asks the engine worker for
-// replies. All chess rules live in src/engine; nothing here decides what is
-// legal.
+// replies. All chess rules live in the Rust engine (engine.wasm); nothing here
+// decides what is legal.
 
-import {
-  Game,
-  START_FEN,
-  CAPTURE,
-  KING,
-  WHITE,
-  moveFlags,
-  moveFrom,
-  movePromotion,
-  moveTo,
-  pieceColour,
-  pieceType,
-  squareName,
-} from '../src/engine/index.js';
+import { loadEngine } from './engine.js';
+import { Game, START_FEN } from './game.js';
 import { PIECE_NAMES, pieceSvg } from './pieces.js';
 import { describeScore, describeStatus, moveRows } from './format.js';
 
@@ -34,9 +22,13 @@ const promotionDialog = $('promotion');
 const params = new URLSearchParams(location.search);
 if (['white', 'black', 'both'].includes(params.get('side'))) sideSelect.value = params.get('side');
 
-let game = new Game();
+// One copy of the engine answers questions about the rules here; a second
+// one, in the worker, does the thinking.
+const rules = await loadEngine(new URL('./engine.wasm', import.meta.url));
+
+let game = new Game(rules);
 let flipped = sideSelect.value === 'black';
-let selected = -1; // square index of the selected piece
+let selected = ''; // name of the selected square, e.g. "e2"
 let worker = null;
 let requestId = 0;
 let thinking = false;
@@ -62,12 +54,12 @@ function askEngine() {
     worker.onmessage = onEngineReply;
   }
   thinking = true;
-  const job = {
+  worker.postMessage({
+    id: ++requestId,
     fen: game.startFen,
     moves: game.history.map((h) => h.uci),
-    limits: { moveTime: Number(timeSelect.value) },
-  };
-  worker.postMessage({ id: ++requestId, job });
+    milliseconds: Number(timeSelect.value),
+  });
   render();
 }
 
@@ -79,10 +71,9 @@ function onEngineReply({ data }) {
     render();
     return;
   }
-  const { best, depth, score } = data.result;
   const moverIsWhite = game.turn === 'white';
-  game.play(best);
-  infoEl.textContent = `Engine: depth ${depth}, ${describeScore(score, moverIsWhite)}`;
+  game.play(data.result.best);
+  infoEl.textContent = `Engine: depth ${data.result.depth}, ${describeScore(data.result, moverIsWhite)}`;
   render();
   askEngine(); // nothing happens unless it is still the engine's turn
 }
@@ -90,7 +81,7 @@ function onEngineReply({ data }) {
 // ----- moves -----
 
 function commit(move) {
-  selected = -1;
+  selected = '';
   game.play(move);
   render();
   askEngine();
@@ -100,13 +91,13 @@ function choosePromotion(candidates) {
   const form = promotionDialog.querySelector('form');
   form.replaceChildren();
   for (const move of candidates) {
-    const type = movePromotion(move);
+    const letter = move.uci[4];
     const button = document.createElement('button');
     button.type = 'submit';
-    button.value = String(move);
-    button.dataset.piece = PIECE_NAMES[type];
-    button.setAttribute('aria-label', PIECE_NAMES[type]);
-    button.innerHTML = pieceSvg(type, game.turn);
+    button.value = move.uci;
+    button.dataset.piece = PIECE_NAMES[letter];
+    button.setAttribute('aria-label', PIECE_NAMES[letter]);
+    button.innerHTML = pieceSvg(letter, game.turn);
     form.append(button);
   }
   promotionDialog.returnValue = '';
@@ -114,10 +105,10 @@ function choosePromotion(candidates) {
 }
 
 promotionDialog.addEventListener('close', () => {
-  const move = Number(promotionDialog.returnValue);
+  const move = promotionDialog.returnValue;
   if (move) commit(move);
   else {
-    selected = -1;
+    selected = '';
     render();
   }
 });
@@ -125,16 +116,16 @@ promotionDialog.addEventListener('close', () => {
 function onSquareClick(sq) {
   if (thinking || game.status().over || !humanPlays(game.turn)) return;
   const legal = game.legalMoves();
-  const candidates = legal.filter((m) => moveFrom(m) === selected && moveTo(m) === sq);
+  const candidates = selected ? legal.filter((m) => m.uci.startsWith(selected + sq)) : [];
   if (candidates.length > 1) {
     choosePromotion(candidates);
     return;
   }
   if (candidates.length === 1) {
-    commit(candidates[0]);
+    commit(candidates[0].uci);
     return;
   }
-  selected = sq !== selected && legal.some((m) => moveFrom(m) === sq) ? sq : -1;
+  selected = sq !== selected && legal.some((m) => m.uci.startsWith(sq)) ? sq : '';
   render();
 }
 
@@ -146,11 +137,11 @@ function buildBoard() {
     for (let col = 0; col < 8; col++) {
       const rank = flipped ? row : 7 - row;
       const file = flipped ? 7 - col : col;
-      const sq = rank * 16 + file;
+      const sq = 'abcdefgh'[file] + (rank + 1);
       const button = document.createElement('button');
       button.type = 'button';
       button.className = `square ${(rank + file) % 2 ? 'light' : 'dark'}`;
-      button.dataset.square = squareName(sq);
+      button.dataset.square = sq;
       if (row === 7) button.dataset.file = 'abcdefgh'[file];
       if (col === 0) button.dataset.rank = String(rank + 1);
       button.addEventListener('click', () => onSquareClick(sq));
@@ -160,45 +151,39 @@ function buildBoard() {
 }
 
 function render() {
-  const pos = game.pos;
   const status = game.status();
   const canMove = !thinking && !status.over && humanPlays(game.turn);
   const legal = canMove ? game.legalMoves() : [];
   const targets = new Map();
-  for (const m of legal) if (moveFrom(m) === selected) targets.set(moveTo(m), m);
-  const last = game.history.at(-1)?.move;
-  const checkedKing = status.check ? pos.kingSq[pos.side] : -1;
+  for (const m of legal) if (m.uci.startsWith(selected)) targets.set(m.uci.slice(2, 4), m);
+  const last = game.history.at(-1)?.uci ?? '';
+  const pieces = game.pieces();
 
   for (const button of boardEl.children) {
-    const name = button.dataset.square;
-    const sq = (name.charCodeAt(1) - 49) * 16 + (name.charCodeAt(0) - 97);
-    const piece = pos.board[sq];
-    const colour = pieceColour(piece) === WHITE ? 'white' : 'black';
+    const sq = button.dataset.square;
+    const piece = pieces.get(sq);
     let html = button.dataset.rank ? `<span class="rank">${button.dataset.rank}</span>` : '';
-    if (piece) html += pieceSvg(pieceType(piece), colour);
+    if (piece) html += pieceSvg(piece.letter, piece.colour);
     if (button.dataset.drawn !== html) {
       button.innerHTML = html;
       button.dataset.drawn = html;
     }
-    button.dataset.piece = piece ? `${colour} ${PIECE_NAMES[pieceType(piece)]}` : '';
-    button.setAttribute('aria-label', piece ? `${name}, ${button.dataset.piece}` : name);
+    button.dataset.piece = piece ? `${piece.colour} ${PIECE_NAMES[piece.letter]}` : '';
+    button.setAttribute('aria-label', piece ? `${sq}, ${button.dataset.piece}` : sq);
 
-    const target = targets.get(sq);
+    const target = selected ? targets.get(sq) : undefined;
     button.classList.toggle('selected', sq === selected);
     button.classList.toggle('target', target !== undefined);
-    button.classList.toggle(
-      'capture',
-      target !== undefined && Boolean(moveFlags(target) & CAPTURE),
-    );
+    button.classList.toggle('capture', target !== undefined && target.capture);
     button.classList.toggle(
       'movable',
-      legal.some((m) => moveFrom(m) === sq),
+      legal.some((m) => m.uci.startsWith(sq)),
     );
+    button.classList.toggle('last', last.slice(0, 2) === sq || last.slice(2, 4) === sq);
     button.classList.toggle(
-      'last',
-      last !== undefined && (sq === moveFrom(last) || sq === moveTo(last)),
+      'check',
+      status.check && piece?.letter === 'k' && piece.colour === game.turn,
     );
-    button.classList.toggle('check', sq === checkedKing && pieceType(piece) === KING);
   }
 
   statusEl.textContent =
@@ -231,10 +216,10 @@ function render() {
 // ----- controls -----
 
 function startGame(fen = START_FEN) {
-  const fresh = new Game(fen); // throws on a bad FEN, leaving the game as it was
+  const fresh = new Game(rules, fen); // throws on a bad FEN, leaving the game as it was
   cancelEngine();
   game = fresh;
-  selected = -1;
+  selected = '';
   infoEl.textContent = '';
   fenError.textContent = '';
   fenInput.blur();
@@ -249,7 +234,7 @@ undoButton.addEventListener('click', () => {
   // Take back the engine's reply too, so it is the player's turn again.
   game.undo();
   if (sideSelect.value !== 'both' && !humanPlays(game.turn)) game.undo();
-  selected = -1;
+  selected = '';
   infoEl.textContent = '';
   render();
   askEngine();
@@ -264,7 +249,7 @@ $('flip').addEventListener('click', () => {
 sideSelect.addEventListener('change', () => {
   cancelEngine();
   flipped = sideSelect.value === 'black';
-  selected = -1;
+  selected = '';
   buildBoard();
   render();
   askEngine();

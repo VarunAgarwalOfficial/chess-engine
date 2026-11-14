@@ -1,7 +1,5 @@
 // Text for the side panel. Pure functions, no DOM.
 
-import { MATE, MATE_BOUND } from '../src/engine/search.js';
-
 // Groups SAN moves into numbered rows: [{ number, white, black }]. When the
 // game starts with Black to move, the first row has no white move.
 export function moveRows(sans, startFen) {
@@ -22,12 +20,13 @@ export function moveRows(sans, startFen) {
   return rows;
 }
 
-// The engine's score, given from the mover's side, as White-relative text.
-export function describeScore(score, moverIsWhite) {
-  if (Math.abs(score) >= MATE_BOUND) {
-    const moves = Math.ceil((MATE - Math.abs(score)) / 2);
-    const winnerIsWhite = score > 0 === moverIsWhite;
-    return `${winnerIsWhite ? 'White' : 'Black'} mates in ${moves}`;
+// The engine's reply as White-relative text. `score` is in centipawns for
+// the side that moved; `mate` is moves to mate, negative when it is being
+// mated, or null.
+export function describeScore({ score, mate }, moverIsWhite) {
+  if (mate !== null) {
+    const winnerIsWhite = mate > 0 === moverIsWhite;
+    return `${winnerIsWhite ? 'White' : 'Black'} mates in ${Math.abs(mate)}`;
   }
   const pawns = (moverIsWhite ? score : -score) / 100;
   return `evaluation ${pawns > 0 ? '+' : ''}${pawns.toFixed(2)}`;
