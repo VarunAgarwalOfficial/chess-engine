@@ -32,7 +32,8 @@ fn mirrored(fen: &str) -> String {
 
 #[test]
 fn evaluation_is_level_at_the_start_and_the_same_for_both_colours() {
-    assert_eq!(evaluate(&Position::start()), 0);
+    // Level apart from the bonus for having the move.
+    assert_eq!(evaluate(&Position::start()), chess::weights::WEIGHTS[chess::eval::TEMPO].0);
     assert!(evaluate(&Position::from_fen("4k3/8/8/8/8/8/8/Q3K3 w - - 0 1").unwrap()) > 800);
     assert!(evaluate(&Position::from_fen("4k3/8/8/8/8/8/8/Q3K3 b - - 0 1").unwrap()) < -800);
     // Any term with a sign or table error for one colour breaks this.

@@ -160,3 +160,72 @@ probably larger:
 
 A fair summary: **in the high 2000s on an engine-list scale, most likely 2650 to 2850**, with
 2760 the point estimate under the exact conditions above.
+
+## Second round: tuning, king safety, the clock (14 November 2026, later the same day)
+
+Work on the `strength` branch. Every idea was tested alone against the best version so far
+with a sequential probability ratio test (SPRT), now part of the match runner:
+
+```
+target/release/match --engine1 NEW --engine2 BEST --games 1000 --tc 0.5+0.005 --sprt "0 20"
+```
+
+The test asks whether the new version is 20 Elo stronger (H1) or no stronger (H0), with a 5%
+chance of each kind of mistake, and stops as soon as the games decide: the log-likelihood ratio
+(LLR) leaves ±2.94. It is computed over opening pairs with the normal approximation of the
+generalised SPRT that Fishtest uses. `--games` is only a cap; a test that reaches the cap is
+"undecided" and the idea is not kept. Openings are the runner's eight random moves, different
+for every test (a new seed each time).
+
+Conditions were worse than in the first round and got worse during the session: the machine
+was shared with other heavy jobs (load average 30 to 65 on 20 cores, against four match
+threads), and the engine's speed on the bench fell from 4.4 to 2.7 million nodes a second. At
+0.5 s + 0.005 s that produced losses on time on both sides, so from the king safety test on,
+tests ran at 1 s + 0.02 s with a cap of 400 to 500 games. A test with a time loss is marked.
+
+### Each idea, in the order tested
+
+| # | Idea | Time control | Games | Elo, 95% interval | SPRT [0, 20] | Verdict |
+| - | ---- | ------------ | ----: | ----------------- | ------------ | ------- |
+| 1 | Transposition table probed and stored in the quiescence search | 0.5+0.005 | 1000 | +1, −14 to +17 | LLR −2.71, undecided at the cap | not kept |
+| 2 | Continuation history (one and two plies back) and capture history, in move ordering and in the reduction of late moves | 0.5+0.005 | 752 | −3, −22 to +16 | stopped at the lower bound (H0) | not kept |
+| 3 | Texel tuning of every weight, including all 768 piece-square entries | 0.5+0.005 | 506 | −16, −42 to +10 | H0 accepted | not kept |
+| 4 | Texel tuning of material and the 16 evaluation terms, piece-square tables keeping their shape | 0.5+0.005 | 568 | +32, +8 to +56 | stopped at the upper bound (H1) | **kept** |
+| 5 | King safety with tuned weights: squares attacked next to the enemy king by piece type, pawn shield, open files at the king | 0.5+0.005, then 1+0.02 | 1000 + 300, then 94 | +21, +4 to +39 and +3, −28 to +35; then +111, +59 to +168 | undecided at the fast control (LLR +2.77, then −0.50); H1 accepted at 1+0.02 | **kept** |
+| 6 | Clock: aim for a full share of the remaining time a move (clock/25 + 3/4 increment) instead of six tenths of it | 1+0.02 | 186 | +57, +22 to +92 | H1 accepted | **kept** |
+| 7 | Singular extensions (depth 7 and up, margin 2 × depth, with multi-cut and a negative extension) | 1+0.02 | 500 | +3, −19 to +25 | LLR −1.17, undecided at the cap | not kept |
+| 8 | More evaluation terms, tuned: pawn threats, minor-piece threats on rooks and queens, king distance to passed pawns, protected passed pawns, tempo, knight outposts | 1+0.02 | 100 | +108, +57 to +163 | H1 accepted | **kept** |
+
+Notes on single rows:
+
+- Row 2 and row 4 crossed a bound and stopped; the few games still in play when they stopped
+  are included in the figures, which is why the runner printed an LLR a little inside the bound.
+- Row 3 also broke a test: with the noisy tables the engine no longer mated with king and rook
+  inside the test's move limit. 1.3 million positions from 16,000 games are too few for 800
+  numbers.
+- Row 5 was run three times at the fast control. The first reached the cap just short of the
+  bound and had one loss on time on each side; the 300-game continuation was level; a third run
+  had four losses on time and was thrown away. It was then decided at 1 s + 0.02 s, which is
+  nearer the conditions of the absolute measurement. The +111 of that run is what an early stop
+  looks like, not the size of the gain; +20 to +40 is a fairer reading of all its games.
+- Row 8 stopped after 100 games, so its +108 is again an early-stop figure; the new version
+  lost one game on time.
+- Row 6 passed although the new version lost two games on time (games 0 and 4, at start-up
+  under load); they count as losses for it.
+- Rows 1, 2 and 7 are standard ideas that usually gain. All three reduced the nodes needed to
+  reach a fixed depth (row 1 halved them) and none showed a gain in games. Not investigated
+  further; the always-replace table of 16 MB at these speeds is one suspect for row 1.
+
+### Tuning method
+
+`engine/src/bin/datagen.rs` plays the engine against itself at 5,000 nodes a move from eight or
+nine random opening moves and writes each position where the side to move is not in check and
+the move chosen is quiet, with the search score and the game's result: 16,233 games and
+1,369,370 positions in 8 minutes on four threads (about 2,850 positions a second).
+
+`engine/src/bin/tune.rs` is Texel's method with gradient descent in place of the one-step local
+search. The evaluation is linear in its weights, and the tuner calls the engine's own `terms`
+function to count features, checking for every position that features times weights reproduces
+`evaluate` exactly. K was fitted once on the original weights (K = 1.177) and held. Mean squared
+error on the held-out tenth: 0.09439 before, 0.09373 after tuning material and terms, 0.09346
+with king safety, 0.09291 with the terms of row 8. The weights live in `engine/src/weights.rs`, which the tuner writes.

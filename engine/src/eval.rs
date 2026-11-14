@@ -41,7 +41,21 @@ pub const KING_ATTACK: usize = 16;
 pub const KING_SHIELD: usize = 20;
 /// Files at or beside our king that hold none of our pawns.
 pub const KING_OPEN_FILE: usize = 21;
-pub const FEATURES: usize = 22;
+/// Enemy pieces (not pawns) attacked by our pawns.
+pub const PAWN_THREAT: usize = 22;
+/// Enemy rooks and queens attacked by our knights and bishops.
+pub const MINOR_THREAT: usize = 23;
+/// For each passed pawn: how much nearer our king is than theirs to the
+/// square in front of it.
+pub const PASSED_KING: usize = 24;
+/// Passed pawns defended by a pawn.
+pub const PASSED_PROTECTED: usize = 25;
+/// Having the move.
+pub const TEMPO: usize = 26;
+/// Knights on the fourth to sixth rank, defended by a pawn, that no enemy
+/// pawn attacks.
+pub const OUTPOST: usize = 27;
+pub const FEATURES: usize = 28;
 
 const TYPICAL_MOBILITY: [i32; 5] = [0, 4, 6, 7, 13];
 
@@ -63,6 +77,21 @@ pub fn terms(pos: &Position, us: usize, add: &mut impl FnMut(usize, i32)) {
     let our_pawns = pos.pieces[PAWN] & ours;
     let their_pawns = pos.pieces[PAWN] & pos.colours[them];
 
+    let distance = |a: usize, b: usize| ((a & 7).abs_diff(b & 7)).max((a / 8).abs_diff(b / 8)) as i32;
+    let (our_king, enemy_king) = (pos.king_square(us), pos.king_square(them));
+    let our_pawn_attacks = pawn_attack_set(us, our_pawns);
+    let their_pawn_attacks = pawn_attack_set(them, their_pawns);
+    if pos.side == us {
+        add(TEMPO, 1);
+    }
+    let targets = pos.colours[them] & !pos.pieces[PAWN] & !pos.pieces[KING];
+    add(PAWN_THREAT, (our_pawn_attacks & targets).count_ones() as i32);
+    let outposts = our_pawn_attacks
+        & !their_pawn_attacks
+        & if us == WHITE { 0x0000_ffff_ff00_0000 } else { 0x0000_00ff_ffff_0000 };
+    add(OUTPOST, (pos.pieces[KNIGHT] & ours & outposts).count_ones() as i32);
+    let heavy = (pos.pieces[ROOK] | pos.pieces[QUEEN]) & pos.colours[them];
+
     for sq in bits(our_pawns) {
         let file = FILE_A << (sq & 7);
         let beside = (file & !FILE_A) >> 1 | (file & !FILE_H) << 1;
@@ -72,6 +101,11 @@ pub fn terms(pos: &Position, us: usize, add: &mut impl FnMut(usize, i32)) {
             add(DOUBLED_PAWN, 1);
         } else if their_pawns & (file | beside) & ahead == 0 {
             add(PASSED_PAWN + if us == WHITE { rank } else { 7 - rank }, 1);
+            let stop = if us == WHITE { sq + 8 } else { sq - 8 };
+            add(PASSED_KING, distance(enemy_king, stop) - distance(our_king, stop));
+            if pawn_attacks(them, sq) & our_pawns != 0 {
+                add(PASSED_PROTECTED, 1);
+            }
         }
         if our_pawns & beside == 0 {
             add(ISOLATED_PAWN, 1);
@@ -107,7 +141,7 @@ pub fn terms(pos: &Position, us: usize, add: &mut impl FnMut(usize, i32)) {
 
     // Mobility: squares each piece can go to that are not held by our own
     // pawns or king and not covered by an enemy pawn.
-    let area = !(our_pawns | pos.pieces[KING] & ours | pawn_attack_set(them, their_pawns));
+    let area = !(our_pawns | pos.pieces[KING] & ours | their_pawn_attacks);
     for piece in KNIGHT..=QUEEN {
         for sq in bits(pos.pieces[piece] & ours) {
             let attacks = match piece {
@@ -117,6 +151,9 @@ pub fn terms(pos: &Position, us: usize, add: &mut impl FnMut(usize, i32)) {
                 _ => bishop_attacks(sq, occupied) | rook_attacks(sq, occupied),
             };
             add(MOBILITY + piece - 1, (attacks & area).count_ones() as i32 - TYPICAL_MOBILITY[piece]);
+            if piece <= BISHOP && attacks & heavy != 0 {
+                add(MINOR_THREAT, (attacks & heavy).count_ones() as i32);
+            }
             let near = (attacks & their_ring).count_ones() as i32;
             if near != 0 {
                 add(KING_ATTACK + piece - 1, near);
