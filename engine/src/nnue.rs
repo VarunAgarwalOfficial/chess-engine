@@ -68,7 +68,7 @@ impl Network {
         if int(4) != HIDDEN as i32 {
             return Err(format!("the network has {} hidden units, the engine {HIDDEN}", int(4)));
         }
-        let mut words = bytes[12..expected - 4].chunks_exact(2).map(|b| i16::from_le_bytes([b[0], b[1]]));
+        let mut words = bytes[12..expected - 4].as_chunks::<2>().0.iter().map(|b| i16::from_le_bytes(*b));
         let feature_weights: Vec<i16> = words.by_ref().take(INPUTS * HIDDEN).collect();
         let mut feature_bias = [0; HIDDEN];
         feature_bias.iter_mut().for_each(|b| *b = words.next().unwrap_or(0));
@@ -116,7 +116,7 @@ impl Network {
     #[inline]
     pub fn evaluate(&self, accumulator: &Accumulator, side: usize) -> i32 {
         let mut sum = 0i32;
-        for (half, weights) in [side, side ^ 1].into_iter().zip(self.output_weights.chunks_exact(HIDDEN)) {
+        for (half, weights) in [side, side ^ 1].into_iter().zip(self.output_weights.as_chunks::<HIDDEN>().0) {
             for (a, w) in accumulator[half].iter().zip(weights) {
                 sum += (*a as i32).clamp(0, QA) * *w as i32;
             }

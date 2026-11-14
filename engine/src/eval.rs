@@ -142,7 +142,7 @@ pub fn terms(pos: &Position, us: usize, add: &mut impl FnMut(usize, i32)) {
     // Mobility: squares each piece can go to that are not held by our own
     // pawns or king and not covered by an enemy pawn.
     let area = !(our_pawns | pos.pieces[KING] & ours | their_pawn_attacks);
-    for piece in KNIGHT..=QUEEN {
+    for (piece, &typical) in TYPICAL_MOBILITY.iter().enumerate().skip(KNIGHT) {
         for sq in bits(pos.pieces[piece] & ours) {
             let attacks = match piece {
                 KNIGHT => knight_attacks(sq),
@@ -150,7 +150,7 @@ pub fn terms(pos: &Position, us: usize, add: &mut impl FnMut(usize, i32)) {
                 ROOK => rook_attacks(sq, occupied),
                 _ => bishop_attacks(sq, occupied) | rook_attacks(sq, occupied),
             };
-            add(MOBILITY + piece - 1, (attacks & area).count_ones() as i32 - TYPICAL_MOBILITY[piece]);
+            add(MOBILITY + piece - 1, (attacks & area).count_ones() as i32 - typical);
             if piece <= BISHOP && attacks & heavy != 0 {
                 add(MINOR_THREAT, (attacks & heavy).count_ones() as i32);
             }

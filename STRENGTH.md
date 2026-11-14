@@ -195,6 +195,8 @@ tests ran at 1 s + 0.02 s with a cap of 400 to 500 games. A test with a time los
 | 6 | Clock: aim for a full share of the remaining time a move (clock/25 + 3/4 increment) instead of six tenths of it | 1+0.02 | 186 | +57, +22 to +92 | H1 accepted | **kept** |
 | 7 | Singular extensions (depth 7 and up, margin 2 × depth, with multi-cut and a negative extension) | 1+0.02 | 500 | +3, −19 to +25 | LLR −1.17, undecided at the cap | not kept |
 | 8 | More evaluation terms, tuned: pawn threats, minor-piece threats on rooks and queens, king distance to passed pawns, protected passed pawns, tempo, knight outposts | 1+0.02 | 100 | +108, +57 to +163 | H1 accepted | **kept** |
+| 9 | Network evaluation (768 → 64×2 → 1, trained on the 1.37 million positions) in place of the hand-written evaluation | 1+0.02 | 50 | −191, −293 to −112 | H0 accepted | not kept; not installed by default |
+| 10 | A third group of tuned terms: connected pawns by rank, rook on the seventh, pawns on the bishop's colour, squares from which a piece could give check | 1+0.02 | 400 | +11, −14 to +37 | LLR +0.15, undecided at the cap | not kept |
 
 Notes on single rows:
 
@@ -229,3 +231,32 @@ function to count features, checking for every position that features times weig
 `evaluate` exactly. K was fitted once on the original weights (K = 1.177) and held. Mean squared
 error on the held-out tenth: 0.09439 before, 0.09373 after tuning material and terms, 0.09346
 with king safety, 0.09291 with the terms of row 8. The weights live in `engine/src/weights.rs`, which the tuner writes.
+
+### The network evaluation (NNUE): built, working, and far too little data
+
+Everything is in place and runs end to end, but the network loses heavily to the tuned
+hand-written evaluation (row 9), so no network ships and the engine uses one only when told
+to with `setoption name EvalFile value PATH`.
+
+- `engine/src/nnue.rs`: 768 inputs (colour, piece, square, seen from each side), one hidden
+  layer of 64 clipped linear units per side, the side to move's half first, one output. 16-bit
+  integer weights, first layer scaled by 255 and output by 64 (the scheme of the bullet
+  trainer's `simple` example, with a smaller layer and a plain instead of a squared clip).
+- `Position` keeps the first-layer sums on a stack and updates them when a piece is put on or
+  taken off a square, so a move costs a few column additions; a test checks them against sums
+  built from scratch through random games with castling, en passant and promotions.
+- `engine/src/bin/train.rs`: Adam on the squared error between the sigmoid of the output and
+  half the game result plus half the squashed search score; four threads; then rounding to the
+  engine's integers. One pass over the data takes about one second.
+
+The trainer is not the limit, the data is. On 1.37 million positions the held-out error is at
+its lowest after four passes (0.0295) and rises after that while the training error keeps
+falling: the network memorises. The generator makes about 2,850 positions a second on four
+threads. None of the sources read gives a tested figure for how many positions a network of
+this shape needs to beat a tuned hand-written evaluation; the bullet example trains on the
+order of a hundred million samples per pass, and forum accounts (not read in full) speak of
+around a hundred million positions. On that footing: **about 100 million positions, which is
+about 10 hours of generation on four threads here**, then minutes of training, with the hidden
+layer widened to 128 or 256. A first sign of life (a network within 50 Elo of the hand-written
+evaluation) could reasonably be looked for at 20 to 30 million positions, two to three hours.
+Positions should then come from deeper searches than 5,000 nodes as well.
