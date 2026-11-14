@@ -40,27 +40,34 @@ A clean sweep only gives a lower bound: an engine less than 425 Elo stronger wou
 in a row less than one time in twenty. How much more than that it is was not measured; doing so
 would need a handicap match (the Rust engine on a fraction of the time).
 
-Speed, same eight positions, counting every node of the main and quiescence search:
+Speed, counting every node of the main and quiescence search, on the same eight positions
+unless noted:
 
-| Engine                                        | Nodes per second |
-| --------------------------------------------- | ---------------: |
-| JavaScript, depth 9                           |        1,450,000 |
-| Rust with the JavaScript engine's search      |       14,000,000 |
-| Rust as shipped (fuller evaluation), depth 16 |        4,400,000 |
-| Rust as shipped, in WebAssembly under Node    |  about 3,000,000 |
+| Engine                                                           | Nodes per second |
+| ---------------------------------------------------------------- | ---------------: |
+| JavaScript, depth 9                                              |        1,450,000 |
+| Rust as shipped, depth 16                                        |        4,400,000 |
+| Rust as shipped, in WebAssembly under Node (one position, 1 s)   |        3,000,000 |
+| Rust plain port: the same search ideas, but a lighter evaluation |       14,000,000 |
 
-Move generation alone (perft 5 from the start position): 69 million positions a second in
-JavaScript, 405 million in Rust.
+So the shipped engine searches about three times as many nodes a second as the JavaScript one.
+The last row is not like for like: the plain port's evaluation was only material and
+piece-square tables kept up to date move by move, less work than the JavaScript evaluation did.
+Nodes per second also says little across different searches, because pruning removes the
+cheapest nodes: in one middlegame position the shipped engine finished depth 14 in 55 ms and
+the plain port depth 11 in 144 ms.
 
-The shipped engine is slower per node than the plain port because its evaluation does more and
-because pruning removes the cheapest nodes. It reaches depth 14 in the position where the plain
-port reaches depth 11 in more time.
+Move generation alone (perft 5 from the start position, both counting the last ply without
+making the moves): 69 million positions a second in JavaScript, 405 million in Rust.
 
 ## Each idea against the version before it
 
-The first Rust version had exactly the JavaScript engine's search (principal variation search,
-transposition table, null move, a fixed one- or two-ply late move reduction, killers, history,
-check extension, quiescence) and a material and piece-square evaluation. Ideas were then added
+The first Rust version ("plain port") had the same set of search ideas as the JavaScript engine
+(principal variation search, transposition table, null move, a fixed one- or two-ply late move
+reduction, killers, history, check extension, quiescence). It was not identical: it also had
+mate-distance pruning, bounded history scores, the static evaluation stored in the table, and
+the clock handling described in the README, and its evaluation was tapered material and
+piece-square tables only. Ideas were then added
 in groups behind switches and played against the version without them: commit `f5fcaae` has the
 switches, and the matches can be repeated from it with `--options1 "Reductions=true"` and so
 on. All matches: 200 games at 0.5 s + 0.005 s.
@@ -73,9 +80,16 @@ on. All matches: 200 games at 0.5 s + 0.005 s.
 | King safety: pieces bearing on the king's neighbourhood, pawn shield                                                                                                                                    | reductions + pruning + evaluation | +74 =59 −67  | +12, −28 to +52    | not shown; removed |
 | Pruning alone, before the reductions and ordering group                                                                                                                                                 | plain port                        | +74 =50 −76  | −3, −46 to +39     | not shown          |
 
-The last row is worth reading. Pruning late moves depends on the moves being well ordered: on
-the plain port it gained nothing measurable, and on top of the ordering group it was the largest
-single gain. Adding the three kept steps gives roughly +300 Elo over the plain port in fast
+The last row was the first match played. After it, a diagnostic (how often each configuration at
+8 ms a move picks the move a 300 ms search picks, over 150 positions) suggested that pruning
+alone chose worse moves and pruning with the ordering group did not, so pruning was tested again
+on top of that group. The diagnostic is not a strength measurement and its numbers are not
+reported; it used about three minutes of processor time, including short self-play to produce
+its positions, which is outside the game-time figure above.
+
+On the plain port pruning gained nothing measurable, and on top of the ordering group it was the
+largest single gain. The likely reason, not separately tested, is that pruning late moves
+depends on the moves being well ordered. Adding the three kept steps gives roughly +300 Elo over the plain port in fast
 self-play; self-play tends to exaggerate differences, so treat that as an upper estimate.
 
 The ideas were tested in groups, not one by one, because the budget allows about five matches.
