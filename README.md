@@ -105,7 +105,8 @@ to analyse.
   points of winning chance.
 - PGN import drops comments, variations and annotations, then matches each word against
   the notation of the legal moves.
-- Opening names come from a hand-written table of about 170 lines in `eco.js`; a game is
+- Opening names come from a hand-written table of about 170 lines in `eco.js` (its codes were
+  checked against the Lichess openings list where the same line appears there); a game is
   named by the longest line its moves begin with.
 - Sounds are made with WebAudio; there are no audio files.
 
@@ -220,5 +221,5 @@ and did not show a gain. Its strength on an absolute scale has not been measured
 ## Credit
 
 Based on the Pygame chess game by Varun Agarwal, 2021. Piece-square tables are PeSTO's, by
-Ronald Friederich. The chess pieces are by Colin M.L. Burnett, from Wikimedia Commons, under
+Ronald Friederich. The chess pieces are by Cburnett, from Wikimedia Commons, under
 CC BY-SA 3.0 (`web/pieces/LICENSE.txt`); the rest of the project is under the MIT licence.

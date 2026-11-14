@@ -36,7 +36,7 @@ A56|Benoni Defence|d4 Nf6 c4 c5
 A57|Benko Gambit|d4 Nf6 c4 c5 d5 b5
 A60|Modern Benoni|d4 Nf6 c4 c5 d5 e6
 A80|Dutch Defence|d4 f5
-A83|Dutch Defence, Staunton Gambit|d4 f5 e4
+A82|Dutch Defence, Staunton Gambit|d4 f5 e4
 B00|King's Pawn Opening|e4
 B00|Nimzowitsch Defence|e4 Nc6
 B00|Owen's Defence|e4 b6
@@ -45,13 +45,13 @@ B01|Scandinavian Defence, Modern Variation|e4 d5 exd5 Nf6
 B01|Scandinavian Defence, Main Line|e4 d5 exd5 Qxd5 Nc3 Qa5
 B02|Alekhine's Defence|e4 Nf6
 B06|Modern Defence|e4 g6
-B07|Pirc Defence|e4 d6
+B00|Pirc Defence|e4 d6
 B07|Pirc Defence|e4 d6 d4 Nf6 Nc3 g6
 B09|Pirc Defence, Austrian Attack|e4 d6 d4 Nf6 Nc3 g6 f4
 B10|Caro-Kann Defence|e4 c6
 B12|Caro-Kann Defence, Advance Variation|e4 c6 d4 d5 e5
 B13|Caro-Kann Defence, Exchange Variation|e4 c6 d4 d5 exd5 cxd5
-B14|Caro-Kann Defence, Panov Attack|e4 c6 d4 d5 exd5 cxd5 c4
+B13|Caro-Kann Defence, Panov Attack|e4 c6 d4 d5 exd5 cxd5 c4
 B15|Caro-Kann Defence|e4 c6 d4 d5 Nc3
 B17|Caro-Kann Defence, Karpov Variation|e4 c6 d4 d5 Nc3 dxe4 Nxe4 Nd7
 B18|Caro-Kann Defence, Classical Variation|e4 c6 d4 d5 Nc3 dxe4 Nxe4 Bf5
@@ -65,7 +65,7 @@ B30|Sicilian Defence, Old Sicilian|e4 c5 Nf3 Nc6
 B30|Sicilian Defence, Rossolimo Variation|e4 c5 Nf3 Nc6 Bb5
 B32|Sicilian Defence, Open|e4 c5 Nf3 Nc6 d4 cxd4 Nxd4
 B33|Sicilian Defence, Sveshnikov Variation|e4 c5 Nf3 Nc6 d4 cxd4 Nxd4 Nf6 Nc3 e5
-B34|Sicilian Defence, Accelerated Dragon|e4 c5 Nf3 Nc6 d4 cxd4 Nxd4 g6
+B32|Sicilian Defence, Accelerated Dragon|e4 c5 Nf3 Nc6 d4 cxd4 Nxd4 g6
 B40|Sicilian Defence, French Variation|e4 c5 Nf3 e6
 B41|Sicilian Defence, Kan Variation|e4 c5 Nf3 e6 d4 cxd4 Nxd4 a6
 B44|Sicilian Defence, Taimanov Variation|e4 c5 Nf3 e6 d4 cxd4 Nxd4 Nc6
@@ -176,7 +176,7 @@ E70|King's Indian Defence, Normal Variation|d4 Nf6 c4 g6 Nc3 Bg7 e4 d6
 E76|King's Indian Defence, Four Pawns Attack|d4 Nf6 c4 g6 Nc3 Bg7 e4 d6 f4
 E80|King's Indian Defence, Sämisch Variation|d4 Nf6 c4 g6 Nc3 Bg7 e4 d6 f3
 E90|King's Indian Defence, Normal Variation|d4 Nf6 c4 g6 Nc3 Bg7 e4 d6 Nf3
-E92|King's Indian Defence, Classical Variation|d4 Nf6 c4 g6 Nc3 Bg7 e4 d6 Nf3 O-O Be2
+E91|King's Indian Defence, Orthodox Variation|d4 Nf6 c4 g6 Nc3 Bg7 e4 d6 Nf3 O-O Be2
 E97|King's Indian Defence, Mar del Plata|d4 Nf6 c4 g6 Nc3 Bg7 e4 d6 Nf3 O-O Be2 e5 O-O Nc6
 `;
 

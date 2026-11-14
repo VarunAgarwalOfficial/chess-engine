@@ -239,6 +239,7 @@ function commit(uci) {
 }
 
 function finish() {
+  clearNote();
   clock?.stop();
   playToken++;
   thinking = false;
