@@ -574,14 +574,16 @@ label.check {
 .player .name {
   display: flex;
   gap: var(--site-space-2);
-  align-items: center;
+  align-items: flex-start;
   font-size: var(--text-s);
 }
 
+/* Level with the first line of the name when it wraps. */
 .dot {
   flex: none;
   width: 12px;
   height: 12px;
+  margin-top: calc((1lh - 12px) / 2);
   border: var(--site-rule-width) solid var(--muted);
   border-radius: 50%;
   background: var(--bar-light);
