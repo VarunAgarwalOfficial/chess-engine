@@ -1,15 +1,14 @@
-// The dialogs: new game, saved games, position (FEN and PGN), settings,
-// and the one shown when a game ends.
+// The dialogs, each opened by a button: new game, saved games, position
+// (FEN and PGN) and settings.
 
 import { editorFen } from './editor.js';
 import { START_FEN } from './game.js';
 import { LEVELS, TIMES } from './levels.js';
 import { gameFromPgn, toPgn } from './pgn.js';
-import { openRecord, persist, runReview, startGame } from './play.js';
+import { openRecord, persist, startGame } from './play.js';
 import { setSound } from './sound.js';
 import { $, board, make, newId, playerName, rules, sentence, settings, state } from './state.js';
 import { deleteGame, listGames, saveSettings } from './store.js';
-import { describeOutcome } from './text.js';
 import { gameButton, note, render } from './view.js';
 
 // ----- new game -----
@@ -144,40 +143,21 @@ function loadPgn() {
 // ----- settings -----
 
 export function applySettings() {
-  const root = document.documentElement;
-  if (settings.mode === 'auto') delete root.dataset.mode;
-  else root.dataset.mode = settings.mode;
-  root.dataset.board = settings.board;
+  // The page follows the system's light or dark setting.
+  document.documentElement.dataset.board = settings.board;
   setSound(settings.sound);
   board.setOptions({ dots: settings.dots, coordinates: settings.coordinates });
   saveSettings(settings);
 }
 
 function openSettings() {
-  for (const radio of document.querySelectorAll('input[name=mode], input[name=board]')) {
+  for (const radio of document.querySelectorAll('input[name=board]')) {
     radio.checked = settings[radio.name] === radio.value;
   }
   for (const box of document.querySelectorAll('[data-setting]')) {
     box.checked = settings[box.dataset.setting];
   }
   $('settings-dialog').showModal();
-}
-
-// ----- game over -----
-
-// Shown a moment after the last move, so that the move is seen first.
-export function announceGameOver() {
-  const { game, gameId } = state;
-  setTimeout(() => {
-    const status = game.status();
-    if (state.game !== game || state.gameId !== gameId || !status.over || state.editor) return;
-    const { title, detail } = describeOutcome(status, state.setup.side);
-    $('over-title').textContent = title;
-    $('over-detail').textContent = detail;
-    $('over-note').textContent = '';
-    for (const dialog of document.querySelectorAll('dialog[open]')) dialog.close();
-    $('over-dialog').showModal();
-  }, 700);
 }
 
 // ----- wiring -----
@@ -236,17 +216,6 @@ export function initDialogs() {
     applySettings();
     render(false);
   });
-
-  $('over-rematch').addEventListener('click', () => {
-    $('over-dialog').close();
-    persist();
-    startGame({ fen: state.game.startFen });
-  });
-  $('over-review').addEventListener('click', () => {
-    $('over-dialog').close();
-    runReview();
-  });
-  $('over-copy').addEventListener('click', () => copy(currentPgn(), 'PGN', $('over-note')));
 
   // Dialogs close on a click outside them.
   for (const dialog of document.querySelectorAll('dialog')) {

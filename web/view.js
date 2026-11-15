@@ -8,9 +8,16 @@ import { renderEditor } from './editor.js';
 import { START_FEN, parseBoard } from './game.js';
 import { LEVELS, timeLabel } from './levels.js';
 import { MARKS, formatScore, winChance } from './review.js';
-import { $, atEnd, board, human, make, other, playerName, settings, state } from './state.js';
+import { $, atEnd, board, cap, human, make, other, playerName, settings, state } from './state.js';
 import { listGames } from './store.js';
-import { describeStatus, material, numberMoves } from './text.js';
+import {
+  describeOutcome,
+  describeScore,
+  describeStatus,
+  material,
+  numberMoves,
+  plainMove,
+} from './text.js';
 
 let drawnCursor = 0;
 let noteTimer = 0;
@@ -107,7 +114,7 @@ function renderPlayers() {
   ]) {
     const el = $(id);
     el.replaceChildren();
-    const name = make('span', 'name', playerName(side));
+    const name = make('span', 'name', seatName(side));
     name.prepend(make('span', `dot ${side}`));
     el.append(name);
     const taken = make('span', 'taken');
@@ -135,6 +142,23 @@ function renderPlayers() {
   }
 }
 
+// Who sits on a side, with the colour named: "Black: the engine, level 5 of 8".
+function seatName(side) {
+  const { setup } = state;
+  if (setup.names) return `${cap(side)}: ${setup.names[side]}`;
+  if (setup.side === 'both') return cap(side);
+  if (setup.side === side) return `${cap(side)}: you`;
+  return `${cap(side)}: the engine, level ${setup.level} of ${LEVELS.length}`;
+}
+
+// Who made a move on `side`, for the line under the board.
+function actor(side) {
+  const { setup } = state;
+  if (setup.names) return `${setup.names[side]} (${cap(side)})`;
+  if (setup.side === 'both') return cap(side);
+  return setup.side === side ? `You (${cap(side)})` : `The engine (${cap(side)})`;
+}
+
 // The clocks alone, between full redraws.
 export function renderClocks() {
   for (const el of document.querySelectorAll('.clock')) {
@@ -148,7 +172,36 @@ function renderStatus() {
   const { game, cursor } = state;
   $('status').textContent = describeStatus(game.status(), game.turn);
   const opening = findOpening(game.sans(cursor));
-  $('opening').textContent = opening ? `${opening.eco} ${opening.name}` : '';
+  $('opening').textContent = opening ? `Opening: ${opening.name}` : '';
+  renderHappened();
+}
+
+// What the move shown did, in words, and how the game ended.
+function renderHappened() {
+  const { game, cursor } = state;
+  if (game.length === 0) return; // the welcome says what is set up
+  let text;
+  if (cursor === 0) {
+    text = 'The start of the game, before any move. Forward steps through the moves.';
+  } else {
+    const ply = game.plies[cursor - 1];
+    const side = game.stateAt(cursor - 1).turn;
+    text = `${actor(side)} ${plainMove(ply.san, ply.uci)}, written ${moveLabel(cursor)}.`;
+    if (atEnd() && cursor >= 2 && !human(side) && human(game.stateAt(cursor - 2).turn)) {
+      const mine = game.plies[cursor - 2];
+      const by = actor(game.stateAt(cursor - 2).turn);
+      text = `${by} ${plainMove(mine.san, mine.uci)}, written ${moveLabel(cursor - 1)}. ${actor(side)} replied: it ${plainMove(ply.san, ply.uci)}, written ${moveLabel(cursor)}.`;
+    }
+    if (!atEnd()) text = `Looking back at move ${cursor} of ${game.length}. ${text}`;
+  }
+  const status = game.status();
+  if (atEnd() && status.over) {
+    const { title, detail } = describeOutcome(status, state.setup.side);
+    text += ` ${title}. ${detail}`;
+  } else if (atEnd() && state.thinking) {
+    text += ' The engine is thinking about its reply.';
+  }
+  $('happened').textContent = text;
 }
 
 // A saved game as a button: who played, how it went, when.
@@ -180,17 +233,18 @@ function renderWelcome() {
   const { setup, game } = state;
   const level = LEVELS[setup.level - 1].name;
   const clock = setup.time ? `a ${timeLabel(setup.time)} clock` : 'no clock';
+  const engine = `the engine at level ${setup.level} of ${LEVELS.length} (${level.toLowerCase()})`;
   let text;
   if (setup.side === 'both') {
-    text = 'Both sides are moved here: two players at one board, or a position to analyse.';
+    text = 'You move both sides here: two players at one board, or a position to study.';
   } else if (setup.side === 'white') {
-    text = `You have White against the engine on ${level}, with ${clock}. Move a piece to start.`;
+    text = `You have White against ${engine}, with ${clock}. Move a piece to start.`;
   } else {
-    text = `You have Black against the engine on ${level}, with ${clock}. The engine moves first.`;
+    text = `You have Black against ${engine}, with ${clock}. The engine moves first.`;
   }
   $('welcome-title').textContent =
     game.startFen === START_FEN ? 'New game' : 'New game from a set-up position';
-  $('welcome-text').textContent = text;
+  $('happened').textContent = `Nothing has been played yet. ${text}`;
   const recent = listGames()
     .filter((record) => record.id !== state.gameId)
     .slice(0, 3);
@@ -266,10 +320,12 @@ function renderActions() {
     $(id).hidden = !visible;
     $(id).disabled = !enabled;
   };
-  show('takeback', true, game.length > 0 && !reviewing);
+  const started = game.length > 0;
+  show('takeback', started, !reviewing);
   show('hint', !over, myTurn);
-  show('draw', !over, myTurn && game.length > 1);
-  show('resign', !over, live && game.length > 0);
+  show('draw', !over && started, myTurn && game.length > 1);
+  show('resign', !over && started, live);
+  document.querySelector('.nav').hidden = !started;
   show('review-run', game.length > 0 && (over || setup.side === 'both') && !review, !reviewing);
   show('rematch', over);
   $('resign').textContent = state.resignArmed ? 'Confirm' : 'Resign';
@@ -277,8 +333,9 @@ function renderActions() {
   $('first').disabled = $('prev').disabled = cursor === 0;
   $('next').disabled = $('last').disabled = atEnd();
   $('sound').setAttribute('aria-pressed', String(settings.sound));
-  $('sound').title = settings.sound ? 'Sound is on' : 'Sound is off';
+  $('sound').textContent = settings.sound ? 'Sound: on' : 'Sound: off';
   $('mark').setAttribute('aria-pressed', String(board.markMode));
+  $('mark').textContent = board.markMode ? 'Draw arrows: on' : 'Draw arrows: off';
 }
 
 export function renderAnalysis() {
@@ -299,12 +356,25 @@ export function renderAnalysis() {
   const result = { white: '1-0', black: '0-1', draw: '½-½' }[ended.result];
   $('score').textContent = on ? (ended.over ? result : formatScore(cp)) : '';
   $('score').classList.toggle('stale', !fresh);
-  let aside = '';
-  if (on) aside = fresh && analysis.depth ? `depth ${analysis.depth}` : '';
-  else if (!state.editor)
-    aside = analysisKind() === 'playAnalysis' ? 'Hidden while you play' : 'Off';
-  $('depth').textContent = aside;
-  $('line').textContent = fresh ? numberMoves(analysis.san, game.fen(cursor)).join(' ') : '';
+  let words = '';
+  if (!on) {
+    if (!state.editor && analysisKind() === 'playAnalysis') {
+      words =
+        "Hidden while you play, so that it cannot give moves away. Switch it on to see the engine's score and a bar above the board.";
+    } else if (!state.editor) words = 'Switched off.';
+  } else if (ended.over) {
+    words = 'The game is over, so this is the result: 1-0 means White won, 0-1 Black, ½-½ a draw.';
+  } else {
+    words = describeScore(cp);
+    if (fresh && analysis.depth) words += ` It looked ${analysis.depth} half-moves ahead.`;
+    words +=
+      " The bar above the board shows the same: the light part is White's share of the winning chances.";
+  }
+  $('depth').textContent = words;
+  $('line').textContent =
+    fresh && analysis.san.length
+      ? `Best moves it sees from here: ${numberMoves(analysis.san, game.fen(cursor)).join(' ')}`
+      : '';
 }
 
 // Which move a pointer on the evaluation graph is over.

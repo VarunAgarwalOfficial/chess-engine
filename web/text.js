@@ -45,6 +45,51 @@ export function describeOutcome(status, side) {
   return { title, detail: WHY[reason]?.(status) ?? '' };
 }
 
+const PIECES = { N: 'knight', B: 'bishop', R: 'rook', Q: 'queen', K: 'king' };
+
+// A move in words, from its notation and its squares: "moved a knight from
+// g1 to f3", "castled on the king's side, giving check".
+export function plainMove(san, uci) {
+  const [from, to] = [uci.slice(0, 2), uci.slice(2, 4)];
+  let text;
+  if (san.startsWith('O-O-O')) text = "castled on the queen's side";
+  else if (san.startsWith('O-O')) text = "castled on the king's side";
+  else {
+    const piece = PIECES[san[0]] ?? 'pawn';
+    text = san.includes('x')
+      ? `moved a ${piece} from ${from} and took the piece on ${to}`
+      : `moved a ${piece} from ${from} to ${to}`;
+    const promoted = san.match(/=([QRBN])/);
+    if (promoted) text += `, where it became a ${PIECES[promoted[1]]}`;
+  }
+  if (san.endsWith('#')) text += ', giving checkmate';
+  else if (san.endsWith('+')) text += ', giving check';
+  return text;
+}
+
+// The engine's score in words. `cp` is centipawns for White; mates are
+// near 10000.
+export function describeScore(cp) {
+  if (Math.abs(cp) >= 9000) {
+    const moves = 10000 - Math.abs(cp);
+    return `${cp > 0 ? 'White' : 'Black'} can force checkmate in ${moves} ${moves === 1 ? 'move' : 'moves'}.`;
+  }
+  const pawns = Math.abs(cp) / 100;
+  const rule = 'The engine scores positions in pawns: plus means White is ahead, minus Black.';
+  if (pawns < 0.2) return `About level. ${rule}`;
+  const side = cp > 0 ? 'White' : 'Black';
+  const how =
+    pawns < 1
+      ? 'a little better'
+      : pawns < 2.5
+        ? 'better'
+        : pawns < 5
+          ? 'clearly better'
+          : 'winning';
+  const worth = pawns < 1 ? `${pawns.toFixed(1)} of a pawn` : `${pawns.toFixed(1)} pawns`;
+  return `${side} is ${how}, by about ${worth}. ${rule}`;
+}
+
 // Moves with their numbers, starting from the position the FEN gives:
 // "12. Nf3 Nc6 13. Bb5" or "12... Nc6 13. Bb5".
 export function numberMoves(sans, fen) {

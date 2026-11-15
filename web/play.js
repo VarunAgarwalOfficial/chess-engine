@@ -25,10 +25,6 @@ import { pickMove } from './text.js';
 import { clearNote, note, render, renderClocks, renderReview } from './view.js';
 
 let resignTimer = 0;
-let whenOver = () => {};
-
-// `callback` runs each time a game ends while it is being played.
-export const onGameOver = (callback) => (whenOver = callback);
 
 function disarmResign() {
   clearTimeout(resignTimer);
@@ -185,7 +181,6 @@ function finish() {
   state.premove = null;
   board.clearPremove();
   setTimeout(() => playSound('end'), 250);
-  whenOver();
 }
 
 // Ends the game other than on the board. `extra` is kept with the ending.
@@ -315,7 +310,7 @@ export async function hint() {
   if (!result?.best || token !== state.playToken || at !== state.cursor) return;
   const [from, to] = [result.best.slice(0, 2), result.best.slice(2, 4)];
   state.hintArrow = { from, to, colour: 'blue' };
-  note(`Hint: ${result.san[0]}`, 6000);
+  note(`Suggested move: ${result.san[0]}, shown by the blue arrow.`, 6000);
   render();
 }
 

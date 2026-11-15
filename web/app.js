@@ -3,7 +3,7 @@
 // here decides what is legal.
 
 import { analysisKind } from './analysis.js';
-import { announceGameOver, applySettings, initDialogs, openGame, openNewGame } from './dialogs.js';
+import { applySettings, initDialogs, openGame, openNewGame } from './dialogs.js';
 import { buildPalette, editorClick, editorDrag, editorFen, loadEditor, typeFen } from './editor.js';
 import { START_FEN } from './game.js';
 import {
@@ -12,7 +12,6 @@ import {
   goTo,
   hint,
   offerDraw,
-  onGameOver,
   openRecord,
   persist,
   resign,
@@ -201,7 +200,6 @@ document.addEventListener('visibilitychange', () => {
 });
 
 setInterval(tick, 100);
-onGameOver(announceGameOver);
 
 // ----- start -----
 

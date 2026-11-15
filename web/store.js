@@ -6,9 +6,8 @@ const GAMES = 'chess.games';
 const LIMIT = 60;
 
 export const DEFAULTS = {
-  mode: 'auto', // auto, light, dark
   board: 'walnut',
-  sound: true,
+  sound: false,
   coordinates: true,
   dots: true,
   analysis: true, // when looking at a finished game or analysing
