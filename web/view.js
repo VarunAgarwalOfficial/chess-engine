@@ -142,13 +142,14 @@ function renderPlayers() {
   }
 }
 
-// Who sits on a side, with the colour named: "Black: the engine, level 5 of 8".
+// Who sits on a side, with the colour named: "Black: the engine, level 5 of 8, where 8 is the
+// strongest".
 function seatName(side) {
   const { setup } = state;
   if (setup.names) return `${cap(side)}: ${setup.names[side]}`;
   if (setup.side === 'both') return cap(side);
   if (setup.side === side) return `${cap(side)}: you`;
-  return `${cap(side)}: the engine, level ${setup.level} of ${LEVELS.length}`;
+  return `${cap(side)}: the engine, level ${setup.level} of ${LEVELS.length}, where ${LEVELS.length} is the strongest`;
 }
 
 // Who made a move on `side`, for the line under the board.

@@ -28,7 +28,9 @@ export function resolvePath(urlPath) {
     return null;
   }
   if (path.endsWith('/')) path += 'index.html';
-  const relative = normalize(path).replace(/^[/\\]+/, '');
+  let relative = normalize(path).replace(/^[/\\]+/, '');
+  // The site's token file names its fonts from the root, /fonts/...; they live in web/fonts.
+  if (relative.split(sep)[0] === 'fonts') relative = join('web', relative);
   const top = relative.split(sep)[0];
   if (!PUBLIC.includes(top) || !(extname(relative) in TYPES)) return null;
   return join(root, relative);
