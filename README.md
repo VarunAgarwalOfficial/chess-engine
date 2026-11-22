@@ -283,7 +283,7 @@ least 6.4 to 1 on any highlighted square.
 
 ## Credit
 
-Based on the Pygame chess game by Varun Agarwal, 2021. Piece-square tables are PeSTO's, by
+Based on the Pygame chess game by Varun Agarwal, 2021: [Chess](https://github.com/VarunAgarwalOfficial/Chess). Piece-square tables are PeSTO's, by
 Ronald Friederich. The chess pieces are by Cburnett, from Wikimedia Commons, under
 CC BY-SA 3.0 (`web/pieces/LICENSE.txt`). The typeface is Newsreader, by Production Type, under the
 SIL Open Font License (`web/fonts/Newsreader-OFL.txt`); IBM Plex Mono and Computer Modern come
