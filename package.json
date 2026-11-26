@@ -13,7 +13,7 @@
     "build:wasm": "scripts/build-wasm.sh",
     "uci": "cargo run --quiet --release --manifest-path engine/Cargo.toml --bin uci",
     "perft": "cargo run --quiet --release --manifest-path engine/Cargo.toml --bin uci -- perft",
-    "test": "cargo test --manifest-path engine/Cargo.toml && node --test test/",
+    "test": "cargo test --manifest-path engine/Cargo.toml && node --test \"test/*.test.js\"",
     "test:deep": "cargo test --manifest-path engine/Cargo.toml --test perft -- --ignored",
     "lint": "cargo clippy --manifest-path engine/Cargo.toml --all-targets -- -D warnings && eslint .",
     "format": "cargo fmt --manifest-path engine/Cargo.toml && prettier --write .",

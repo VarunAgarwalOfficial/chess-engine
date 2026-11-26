@@ -142,7 +142,7 @@ bin/serve.js       a small web server for the page
 test/              the page's code against the real engine.wasm
 ```
 
-## Run
+## Run it
 
 Needs Node 22 or newer for the page, and Rust (stable) for everything else.
 
@@ -289,3 +289,11 @@ CC BY-SA 3.0 (`web/pieces/LICENSE.txt`). The typeface is Newsreader, by Producti
 SIL Open Font License (`web/fonts/Newsreader-OFL.txt`); IBM Plex Mono and Computer Modern come
 with their own licences in `web/fonts/`. Opening names follow the Lichess openings
 list (CC0). The rest of the project is under the MIT licence.
+
+## Status
+
+Working, as of 26 November 2026. See [STATUS.md](STATUS.md).
+
+## Licence
+
+MIT (see [LICENSE](LICENSE)).
