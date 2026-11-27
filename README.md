@@ -4,7 +4,7 @@
 
 Chess engine in Rust with alpha-beta search and UCI, and a browser board that runs it as WebAssembly.
 
-[Live demo](https://varunagarwalofficial.github.io/chess-engine/) · [MIT licence](LICENSE)
+[Live demo](https://varunswaika.github.io/chess-engine/) · [MIT licence](LICENSE)
 
 The engine knows the full rules,
 searches ahead with alpha-beta, speaks UCI so it can be plugged into any chess GUI, and runs in
@@ -296,7 +296,7 @@ review strip by the size of the dot.
 
 ## Credit
 
-Based on the Pygame chess game by Varun Agarwal, 2021: [Chess](https://github.com/VarunAgarwalOfficial/Chess). Piece-square tables are PeSTO's, by
+Based on the Pygame chess game by Varun Agarwal, 2021: [Chess](https://github.com/varunswaika/Chess). Piece-square tables are PeSTO's, by
 Ronald Friederich. The pixel pieces are drawn for this project. The fonts come with the
 shared shell, with their licences in `varun-ui/shell/fonts/`. Opening names follow the Lichess openings
 list (CC0). The rest of the project is under the MIT licence.

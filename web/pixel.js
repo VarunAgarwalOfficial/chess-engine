@@ -1,9 +1,9 @@
-// Copied from varun-ui/shell/pixel.js (https://github.com/VarunAgarwalOfficial/varun-ui). Change both together.
+// Copied from varun-ui/shell/pixel.js (https://github.com/varunswaika/varun-ui). Change both together.
 // Pixel scene helpers shared by every demo: the scene palette, sprites from
 // text grids, ordered dither, whole-number scales and a frame clock.
 //
 // Plain demos import it from the published shell:
-//   import { sprite, ticker } from "https://varunagarwalofficial.github.io/varun-ui/shell/pixel.js";
+//   import { sprite, ticker } from "https://varunswaika.github.io/varun-ui/shell/pixel.js";
 // Bundled apps keep a copy and say so at the top; change both together.
 //
 // Rules for every scene: one art pixel size, whole-number scales, moves locked
