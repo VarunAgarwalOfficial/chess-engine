@@ -271,8 +271,8 @@ does not mean).
 The page uses the owner's website look, "Editorial": `web/c-editorial-tokens.css` is the site's
 token file, unchanged, and `style.css` gives every colour, size, space, font and rule of the
 page as one of its tokens. Dark follows the system setting. The fonts are named from the root
-(`/fonts/...`), so `bin/serve.js` serves `/fonts/` from `web/fonts/`; a static host needs the
-same.
+(`/fonts/...`), so `bin/serve.js` serves `/fonts/` from `web/fonts/`. The Pages workflow
+rewrites them to `fonts/...` in the copy it publishes.
 
 The site has four meaning colours, and every project maps onto them the same way:
 
