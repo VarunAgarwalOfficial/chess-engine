@@ -1,6 +1,12 @@
-# Chess
+<p align="center"><img src="docs/banner.png" alt="Pixel art: a search tree grows out of a small chess board in a field" width="100%"></p>
 
-A chess engine in Rust and a browser board to play against it. The engine knows the full rules,
+# Chess engine
+
+Chess engine in Rust with alpha-beta search and UCI, and a browser board that runs it as WebAssembly.
+
+[MIT licence](LICENSE)
+
+The engine knows the full rules,
 searches ahead with alpha-beta, speaks UCI so it can be plugged into any chess GUI, and runs in
 the page as WebAssembly.
 
