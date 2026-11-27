@@ -12,7 +12,7 @@ the page as WebAssembly.
   interval 2750 to 2845, from 180 games). `STRENGTH.md` says how it was measured and what the
   number does and does not mean.
 - **405 million positions a second** in move generation alone (perft 5 from the start position).
-- Every search idea beyond plain alpha-beta was kept only if it won a self-play match against the
+- Every idea beyond plain alpha-beta was kept only if it won a self-play match against the
   version without it. In the last round four of eleven ideas passed, and together they gained
   100 Elo against the version before.
 - The move generator matches the published perft counts for the six standard test positions.
