@@ -4,7 +4,7 @@
 
 Chess engine in Rust with alpha-beta search and UCI, and a browser board that runs it as WebAssembly.
 
-[MIT licence](LICENSE)
+[Live demo](https://varunagarwalofficial.github.io/chess-engine/) · [MIT licence](LICENSE)
 
 The engine knows the full rules,
 searches ahead with alpha-beta, speaks UCI so it can be plugged into any chess GUI, and runs in
