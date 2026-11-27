@@ -224,21 +224,20 @@ function paintTable(g, W, H, bx, by, props) {
   };
   for (let y0 = -4; y0 < H; y0 += 9) {
     for (let x = 0; x < W; x++) set(x, y0, 3);
-    for (let x = 0; x < W; x++) if (x % 2) set(x, y0 + 1, 0);
+    for (let x = 0; x < W; x++) set(x, y0 + 1, 0);
     // Long boards: an end joint every 160 to 300 art pixels.
     let seam = Math.floor(next() * 200);
     while (seam < W) {
       for (let y = y0 + 1; y < y0 + 9; y++) set(seam, y, 3);
       seam += 160 + Math.floor(next() * 140);
     }
-    for (let k = 0; k < W / 4; k++) {
+    for (let k = 0; k < W / 14; k++) {
       const x = Math.floor(next() * W);
       const y = y0 + 2 + Math.floor(next() * 6);
-      const long = 3 + Math.floor(next() * 12);
-      const light = next() < 0.3;
-      for (let i = 0; i < long; i++) set(x + i, y, light ? 0 : 2);
+      const long = 8 + Math.floor(next() * 18);
+      for (let i = 0; i < long; i++) set(x + i, y, 2);
     }
-    if (next() < 0.5) {
+    if (next() < 0.15) {
       const x = Math.floor(next() * W);
       for (const [dx, dy, t] of [
         [0, 4, 3],
@@ -258,17 +257,20 @@ function paintTable(g, W, H, bx, by, props) {
   const panes = props.left ? windowPanes(bx) : [];
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
+      // Flat bands of light, not gradients: lamp pool, plain table, far
+      // edges one shade darker. Only the band edges are dithered.
       const r = Math.hypot((x - cx) * 0.75, (y - cy) * 1.5);
-      let shift = r < 70 ? -(70 - r) / 90 : (r - 70) / 120;
-      if (panes.some((p) => inPane(p, x, y))) shift -= 1.5;
+      let shift = r < 58 ? -1 : r > 200 ? 1 : 0;
+      if ((r >= 54 && r < 58) || (r > 200 && r <= 204))
+        shift = dithered(x, y, 0.5) ? shift : shift ? 0 : -1;
+      if (panes.some((p) => inPane(p, x, y))) shift -= 1;
       const shadow =
         x >= bx - FRAME + 3 &&
         x < bx + 128 + FRAME + 3 &&
         y >= by - FRAME + 3 &&
         y < by + 128 + FRAME + 3;
-      if (shadow) shift += 1.6;
-      const whole = Math.floor(shift);
-      const t = tone[y * W + x] + whole + (dithered(x, y, shift - whole) ? 1 : 0);
+      if (shadow) shift += 2;
+      const t = tone[y * W + x] + shift;
       tone[y * W + x] = Math.min(5, Math.max(0, t));
     }
   }
