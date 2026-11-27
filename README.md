@@ -4,6 +4,22 @@ A chess engine in Rust and a browser board to play against it. The engine knows 
 searches ahead with alpha-beta, speaks UCI so it can be plugged into any chess GUI, and runs in
 the page as WebAssembly.
 
+![The board page in the browser: a game against the engine at level 5 of 8](docs/screenshot.png)
+
+## Results
+
+- **About 2800** on Stockfish's strength-limited `UCI_Elo` scale, at 10 s + 0.1 s a game (95%
+  interval 2750 to 2845, from 180 games). `STRENGTH.md` says how it was measured and what the
+  number does and does not mean.
+- **405 million positions a second** in move generation alone (perft 5 from the start position).
+- Every search idea beyond plain alpha-beta was kept only if it won a self-play match against the
+  version without it. In the last round four of eleven ideas passed, and together they gained
+  100 Elo against the version before.
+- The move generator matches the published perft counts for the six standard test positions.
+
+**Stack:** Rust with no dependencies, compiled to WebAssembly for the page; plain JavaScript and
+CSS, no framework; the UCI protocol for chess GUIs.
+
 ## The idea
 
 The original was a two-player chess board written in Python with Pygame in 2021. Its first version
@@ -49,8 +65,10 @@ possible, so repetition is counted the way the rules define it.
 **Evaluation** (`eval.rs`). Every term has a middlegame and an endgame value, blended by how
 much material is left. Material and a table per piece for where it stands well are kept up to
 date as moves are made. On top of that: mobility, doubled, isolated and passed pawns, the
-bishop pair, rooks on open files, and, in a won ending without pawns, driving the losing king
-to the edge.
+bishop pair, rooks on open files, king safety, threats, king distance to passed pawns, tempo,
+knight outposts, and, in a won ending without pawns, driving the losing king to the edge. The weights
+are tuned by Texel's method on 1.37 million positions from the engine's own games
+(`weights.rs`).
 
 **Search** (`search.rs`, `tt.rs`). Iterative deepening over a principal-variation alpha-beta
 search:
@@ -235,11 +253,12 @@ Draws by repetition and the fifty-move rule are applied automatically rather tha
 flag fall is a draw only when the other side has a bare king or a single minor piece, which
 is simpler than the full rule. PGN import reads the first game and
 only its main line. The engine levels are not
-calibrated to ratings. The engine has no opening book or endgame tables, and searches on one thread. The evaluation is
-hand written and its weights are untuned; it knows nothing about king safety, which was tried
-and did not show a gain. Its strength was measured only
-against strength-limited Stockfish in 10-second games (about 2760 on that scale; `STRENGTH.md`
-says what that does and does not mean).
+calibrated to ratings. The engine has no opening book or endgame tables, and searches on one
+thread. The evaluation is hand written with tuned weights. A small network evaluation (NNUE) is
+built and works, but with the data available it lost to the hand-written one, so it is off unless
+asked for (`setoption name EvalFile`). Its strength was measured only against strength-limited
+Stockfish in 10-second games (about 2800 on that scale; `STRENGTH.md` says what that does and
+does not mean).
 
 ## The look
 
