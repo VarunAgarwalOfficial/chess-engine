@@ -28,7 +28,7 @@
      the board is the same in both and the light scheme's are too dark to read on a dark square. */
   --last: #cfa75b; /* measured */
   --picked: #86b58f; /* proved */
-  --premove: #b29dd8; /* open */
+  --premove: #8fbbe6; /* open */
   --check: #df8b80; /* against */
 
   /* White's and Black's share of the bar, the same in both schemes: the page and ink of the
