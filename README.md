@@ -155,13 +155,13 @@ web/               the page, and engine.wasm built from the library
   editor.js          the board editor
   dialogs.js         new game, saved games, FEN and PGN, settings, game over
   board.js           drawing, drag and drop, premoves, arrows, keyboard
+  room.js            the pixel room round the board: the table, the carved frame, the props
+  pixel.js           pixel helpers, copied from varun-ui/shell/pixel.js
   game.js            the moves played and the engine's description of each position
   engine.js, worker.js, client.js   the WebAssembly engine and its workers
   pgn.js, eco.js, review.js, clock.js, text.js, levels.js   pure logic and data
   sound.js, store.js   WebAudio and localStorage
-  c-editorial-tokens.css   the site's look, copied unchanged from the website
-  fonts/             the site's fonts, with their licences
-  pieces/            the piece images, with their own licence
+  pieces/, art/      the pixel pieces, the grain and the dither masks, made by scripts/pixel-art.mjs
 bin/serve.js       a small web server for the page
 test/              the page's code against the real engine.wasm
 ```
@@ -268,11 +268,18 @@ does not mean).
 
 ## The look
 
-The page uses the owner's website look, "Editorial": `web/c-editorial-tokens.css` is the site's
-token file, unchanged, and `style.css` gives every colour, size, space, font and rule of the
-page as one of its tokens. Dark follows the system setting. The fonts are named from the root
-(`/fonts/...`), so `bin/serve.js` serves `/fonts/` from `web/fonts/`. The Pages workflow
-rewrites them to `fonts/...` in the copy it publishes.
+The page uses the site's pixel look from the shared shell (`varun-ui/shell/`), linked in
+`index.html`: its tokens, fonts, the bar, the About panel and the footer. The page is light
+only, as the site is.
+
+The board is pixel art. It is 128 art pixels wide, 16 to a square, and is shown at a
+whole-number scale (the board's size is a multiple of 128 px), so every art pixel is a whole
+number of screen pixels. `scripts/pixel-art.mjs` draws the pieces, the grain and the dither
+masks from text grids. `room.js` draws the room on one canvas at the same scale: a lamp-lit
+table, window light, the carved frame with the coordinates cut in it, and a candle, a cup of
+tea, books and a plant, with small idle motion at 10 frames a second. A move is drawn in two to
+four frames, 12 a second, a whole art pixel at a time; a taken piece leaves through two frames
+of dither. Under reduced motion, pieces jump and nothing idles.
 
 The site has four meaning colours, and every project maps onto them the same way:
 
@@ -285,34 +292,13 @@ The site has four meaning colours, and every project maps onto them the same way
 | already seen (grey tint, no meaning) | `muted` mixed into the page | not used here                                 |
 
 Mistake and blunder share a colour and are told apart by their signs, `?` and `??`, and on the
-review strip by the size of the dot. Square highlights use the dark scheme's versions of the
-four in both schemes, because the board is the same in both.
-
-Removed: Inter; the cream page and the white surface; the shadows (dialogs, board, dragged
-piece, arrows, promotion box, switch knob); the dialogs' rounded hairline border and their
-rising animation; the radial gradient on a king in check and the conic one on the board
-swatches; the green accent and its filled current move; the sliding switch (now a checkbox);
-the clock's pill; the board's dimming in the dark; the transitions on buttons, the bar and
-the progress strip. One filled button remains, the main action, in the ink.
-
-What moved with the new type: the text is 17 to 28 px instead of 12 to 20, so the coordinates
-went outside the board (rank numbers to its left, file letters under it) and the board is a
-little smaller to leave room for them and for the title, which is the site's 44 px (36 on a
-phone). The player line wraps instead of cutting off. Buttons are 44 px tall everywhere.
-
-Contrast, checked with WCAG 2 relative luminance in a small script: text and the four
-meaning colours are at least 4.9 to 1 on the page in both schemes. The dark squares were
-darkened so a black piece is at least 4.9 to 1 on every board (white pieces have a black
-outline), the light squares are at least 3 to 1 from the dark ones, and a black piece is at
-least 6.4 to 1 on any highlighted square.
+review strip by the size of the dot.
 
 ## Credit
 
 Based on the Pygame chess game by Varun Agarwal, 2021: [Chess](https://github.com/VarunAgarwalOfficial/Chess). Piece-square tables are PeSTO's, by
-Ronald Friederich. The chess pieces are by Cburnett, from Wikimedia Commons, under
-CC BY-SA 3.0 (`web/pieces/LICENSE.txt`). The typeface is Newsreader, by Production Type, under the
-SIL Open Font License (`web/fonts/Newsreader-OFL.txt`); IBM Plex Mono and Computer Modern come
-with their own licences in `web/fonts/`. Opening names follow the Lichess openings
+Ronald Friederich. The pixel pieces are drawn for this project. The fonts come with the
+shared shell, with their licences in `varun-ui/shell/fonts/`. Opening names follow the Lichess openings
 list (CC0). The rest of the project is under the MIT licence.
 
 ## Status

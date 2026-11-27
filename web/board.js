@@ -5,6 +5,10 @@
 const FILES = 'abcdefgh';
 const SVG = 'http://www.w3.org/2000/svg';
 const NAMES = { k: 'king', q: 'queen', r: 'rook', b: 'bishop', n: 'knight', p: 'pawn' };
+// Art pixels in a square, and the time a drawn frame stays: 12 a second.
+const ART = 16;
+const FRAME = 83;
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)');
 
 const element = (tag, className, parent) => {
   const el = document.createElement(tag);
@@ -162,14 +166,36 @@ export class Board {
     this.elements.clear();
   }
 
+  // Moves a piece in drawn frames, a whole art pixel at a time: a square is
+  // 16 art pixels, and the board is a whole number of them. Still, or under
+  // reduced motion, it jumps.
   position(el, square, still = false) {
     const [col, row] = this.place(square);
-    if (still) el.classList.add('still');
-    el.style.transform = `translate(${col * 100}%, ${row * 100}%)`;
-    if (still) {
-      void el.offsetWidth; // apply now, without the slide
-      el.classList.remove('still');
+    const to = [col * ART, row * ART];
+    clearTimeout(el.stepTimer);
+    const from = el.artAt;
+    if (still || !from || REDUCED.matches) {
+      this.placeArt(el, to);
+      return;
     }
+    const far = Math.max(Math.abs(to[0] - from[0]), Math.abs(to[1] - from[1])) / ART;
+    const frames = Math.min(4, Math.max(2, Math.ceil(far)));
+    const path = [];
+    for (let k = 1; k <= frames; k++) {
+      const t = 1 - (1 - k / frames) ** 2;
+      path.push(from.map((v, i) => Math.round(v + (to[i] - v) * t)));
+    }
+    const next = () => {
+      this.placeArt(el, path.shift());
+      if (path.length) el.stepTimer = setTimeout(next, FRAME);
+    };
+    next();
+  }
+
+  // Art pixels from the board's top left; a piece is 16 wide.
+  placeArt(el, [x, y]) {
+    el.artAt = [x, y];
+    el.style.transform = `translate(${(x / ART) * 100}%, ${(y / ART) * 100}%)`;
   }
 
   // Moves the piece elements from the old position to the new one. Pieces
@@ -438,9 +464,12 @@ export class Board {
     const size = box.width / 8;
     // Under a finger the piece is lifted so it can be seen.
     const lift = event.pointerType === 'mouse' ? 0 : size * 0.7;
-    const x = event.clientX - box.left - size / 2;
-    const y = event.clientY - box.top - size / 2 - lift;
-    drag.el.style.transform = `translate(${x}px, ${y}px)`;
+    // Held on the art grid, a whole art pixel at a time.
+    const art = size / ART;
+    const x = Math.round((event.clientX - box.left - size / 2) / art);
+    const y = Math.round((event.clientY - box.top - size / 2 - lift) / art);
+    clearTimeout(drag.el.stepTimer);
+    this.placeArt(drag.el, [x, y]);
     const over = this.squareAt(event);
     if (over !== drag.over) {
       drag.over = over;
