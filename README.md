@@ -1,4 +1,4 @@
-<p align="center"><img src="docs/banner.png" alt="Pixel art: a search tree grows out of a small chess board in a field" width="100%"></p>
+<p align="center"><img src="docs/banner.png" alt="Pixel art: a chess board mid-game with a knight's move arrow, beside a search tree with the best line lit" width="100%"></p>
 
 # Chess engine
 
