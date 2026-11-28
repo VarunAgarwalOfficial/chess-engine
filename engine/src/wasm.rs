@@ -27,6 +27,9 @@ static SEARCHER: Mutex<Option<Searcher>> = Mutex::new(None);
 /// Table size for the page, in megabytes.
 const HASH: usize = 16;
 
+/// The deepest `explain` the page may ask for.
+const MAX_EXPLAIN_DEPTH: i32 = 10;
+
 /// The position asked about, and the request's third line.
 fn request() -> Result<(Position, String), String> {
     let buffer = BUFFER.lock().map_err(|_| "buffer lock")?;
@@ -160,8 +163,10 @@ pub extern "C" fn go() -> usize {
 pub extern "C" fn explain() -> usize {
     respond(request().map(|(mut pos, parameters)| {
         let tokens: Vec<&str> = parameters.split_whitespace().collect();
+        // Each legal move gets its own search with no time limit, so the
+        // depth is capped to keep the page responsive.
         let depth = match tokens.as_slice() {
-            ["depth", n] => n.parse().unwrap_or(6),
+            ["depth", n] => n.parse().unwrap_or(6).clamp(1, MAX_EXPLAIN_DEPTH),
             _ => 6,
         };
         let mut searcher = SEARCHER.lock().expect("searcher lock");
