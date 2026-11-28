@@ -302,6 +302,24 @@ impl Searcher {
         // Is the position getting better for the side to move? If not,
         // late moves deserve less attention.
         let improving = !in_check && ply >= 2 && static_eval > self.evals[ply - 2];
+        // For pruning, a table score is a better guess than the evaluation
+        // when its bound points the same way.
+        let static_eval = match entry {
+            Some(entry) if !in_check && (entry.score as i32).abs() < MATE_BOUND => {
+                let score = entry.score as i32;
+                let fits = match entry.bound {
+                    LOWER => score > static_eval,
+                    UPPER => score < static_eval,
+                    _ => true,
+                };
+                if fits {
+                    score
+                } else {
+                    static_eval
+                }
+            }
+            _ => static_eval,
+        };
 
         if !pv_node && !in_check {
             // Reverse futility: so far ahead that a shallow search cannot
@@ -457,7 +475,7 @@ impl Searcher {
         // A move that failed low was not shown to be good; do not let it
         // displace a move the table already trusts.
         let table_move = if bound == UPPER { Move::NONE } else { best_move };
-        let eval = if in_check { 0 } else { static_eval };
+        let eval = if in_check { 0 } else { self.evals[ply] };
         self.tt.store(pos.hash, table_move, stored, eval, depth, bound);
         best
     }

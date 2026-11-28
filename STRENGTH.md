@@ -356,14 +356,16 @@ Same runner and SPRT as the second round, with three differences:
   faults as they happen. Stockfish restarting after a fault missed the old limit, and the
   crash lost a first rating run, which is not counted below.
 
-| #   | Idea                                                                                 | Games | Elo, 95% interval | SPRT [0, 10]            | Verdict  |
-| --- | ------------------------------------------------------------------------------------ | ----: | ----------------- | ----------------------- | -------- |
-| 1   | Transposition table in buckets of five entries (64 bytes), replaced by depth and age |  1342 | −9, −22 to +4     | H0 accepted (LLR −3.01) | not kept |
+| #   | Idea                                                                                   | Games | Elo, 95% interval | SPRT [0, 10]            | Verdict  |
+| --- | -------------------------------------------------------------------------------------- | ----: | ----------------- | ----------------------- | -------- |
+| 1   | Transposition table in buckets of five entries (64 bytes), replaced by depth and age   |  1342 | −9, −22 to +4     | H0 accepted (LLR −3.01) | not kept |
+| 2   | A table score replaces the static evaluation for pruning when its bound points past it |   628 | +36, +16 to +56   | H1 accepted (LLR +3.04) | **kept** |
 
 Notes:
 
 - Row 1 lost three games on time, all three by the new version; the old one lost none.
   Counted as draws instead, they leave the score at 48.8%, still below even.
+- Row 2 had one time loss, by the old version. Counted as a draw, the score is 55.0%.
 
 ### Absolute strength, 28 November
 
