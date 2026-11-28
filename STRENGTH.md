@@ -30,7 +30,7 @@ matches are short: 200 games at 0.5 seconds plus 5 milliseconds a move. An inter
 
 ## Against the old JavaScript engine
 
-The JavaScript engine is commit `b7723f3` of this repository, run with Node.
+The JavaScript engine is commit `6fae0de` of this repository, run with Node.
 
 | Match                           | Games | Time control | Result    | Elo                                 |
 | ------------------------------- | ----: | ------------ | --------- | ----------------------------------- |
@@ -68,7 +68,7 @@ reduction, killers, history, check extension, quiescence). It was not identical:
 mate-distance pruning, bounded history scores, the static evaluation stored in the table, and
 the clock handling described in the README, and its evaluation was tapered material and
 piece-square tables only. Ideas were then added
-in groups behind switches and played against the version without them: commit `f5fcaae` has the
+in groups behind switches and played against the version without them: commit `874d07f` has the
 switches, and the matches can be repeated from it with `--options1 "Reductions=true"` and so
 on. All matches: 200 games at 0.5 s + 0.005 s.
 
@@ -285,7 +285,7 @@ the forum threads on network sizes were not read.
 Same conditions as the first round's absolute measurement: 10 s + 0.1 s, 64 MB hash, one
 thread each, four games at a time, the runner's openings and adjudication. The machine was
 heavily loaded throughout (load average 20 to 75), unlike in the first round, so the baseline
-engine (commit `acb2bbd`) was measured again the same afternoon as a control, on the same
+engine (commit `cb737df`) was measured again the same afternoon as a control, on the same
 seeds.
 
 | Match                               | Games | Seed | Result      | Score | Elo difference, 95% interval | Implied rating |
@@ -351,8 +351,8 @@ Same runner and SPRT as the second round, with four differences:
 - Bounds [0, 10] and a cap of 3,000 games, at 1 s + 0.02 s, Hash=16.
 - The runner now takes `--min-memory 6`: no new game starts while less than 6 GB is free.
   Games already running carry on. The machine was shared with other heavy jobs all day.
-- The baseline is the engine as the second round left it (search and evaluation as of f9a1868).
-- From d7351e4 the runner gives an engine a minute to start, not ten seconds, and prints
+- The baseline is the engine as the second round left it (search and evaluation as of 6cc5d38).
+- From 40a5577 the runner gives an engine a minute to start, not ten seconds, and prints
   faults as they happen. Stockfish restarting after a fault missed the old limit, and the
   crash lost a first rating run, which is not counted below.
 
