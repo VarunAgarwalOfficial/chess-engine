@@ -2,7 +2,7 @@ import js from '@eslint/js';
 import globals from 'globals';
 
 export default [
-  { ignores: ['node_modules/', 'engine/target/'] },
+  { ignores: ['node_modules/', 'engine/target/', 'web/shell/'] },
   js.configs.recommended,
   {
     languageOptions: {

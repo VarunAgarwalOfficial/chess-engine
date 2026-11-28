@@ -1,5 +1,5 @@
 /* The site's pixel look. Every colour, size, space and font is one of the site's tokens, from
-   the shared shell (varun-ui/shell/shell.css, linked in index.html, with the fonts). The page is
+   the shared shell (a copy of varun-ui/shell in shell/, linked in index.html, with the fonts). The page is
    light only, as the site is. The names below are this page's own, kept so the scripts need not
    change. */
 :root {

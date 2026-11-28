@@ -168,7 +168,7 @@ does not mean).
 
 ## The look
 
-The page uses the site's pixel look from the shared shell (`varun-ui/shell/`), linked in
+The page uses the site's pixel look from the shared shell (`varun-ui/shell/`), copied into `web/shell/` and linked in
 `index.html`: its tokens, fonts, the bar, the About panel and the footer. The page is light
 only, as the site is.
 
@@ -198,5 +198,5 @@ review strip by the size of the dot.
 
 Based on the Pygame chess game by Varun Agarwal, 2021: [Chess](https://github.com/varunswaika/Chess). Piece-square tables are PeSTO's, by
 Ronald Friederich. The pixel pieces are drawn for this project. The fonts come with the
-shared shell, with their licences in `varun-ui/shell/fonts/`. Opening names follow the Lichess openings
+shared shell, with their licences in `web/shell/fonts/`. Opening names follow the Lichess openings
 list (CC0). The rest of the project is under the MIT licence.
