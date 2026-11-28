@@ -34,5 +34,10 @@ export async function loadEngine(source) {
     // { best, depth, score, mate, nodes, time, pv: [uci], san: [san] }
     // score is in centipawns for the side to move.
     go: (fen, moves, parameters) => call(wasm.go, fen, moves, parameters),
+    // Every legal move searched on its own to a depth (1 to 10, default 6),
+    // best first, and the opponent's threat if the side to move could pass.
+    // { depth, moves: [{ score, mate, pv, san }], threat: { score, mate, pv, san } | null }
+    // Scores are for the side to move, so a threat to mate has a negative mate.
+    explain: (fen, moves, depth = 6) => call(wasm.explain, fen, moves, `depth ${depth}`),
   };
 }

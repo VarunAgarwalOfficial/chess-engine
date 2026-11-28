@@ -151,3 +151,20 @@ test('a weak level plays noisily but never passes up a mate', () => {
     'a2a3',
   );
 });
+
+test('explain searches every move and names the threat', () => {
+  // Scholar's mate threatened: Black to move must stop Qxf7#.
+  const moves = ['e2e4', 'e7e5', 'f1c4', 'b8c6', 'd1h5'];
+  const start = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+  const { depth, moves: choices, threat } = engine.explain(start, moves, 3);
+  assert.equal(depth, 3);
+  assert.equal(choices.length, engine.describe(start, moves).moves.length);
+  assert.deepEqual([threat.san[0], threat.mate], ['Qxf7#', -1]);
+  const scores = choices.map((c) => c.score);
+  assert.deepEqual(
+    scores,
+    [...scores].sort((a, b) => b - a),
+  );
+  assert.ok(choices[0].mate === null || choices[0].mate > 0, choices[0].san.join(' '));
+  assert.ok(choices.at(-1).mate < 0, 'some move allows the mate');
+});
