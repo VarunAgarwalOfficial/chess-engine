@@ -343,3 +343,41 @@ matches, 8.5 minutes of data generation, about 2 minutes of tuning and training,
    which the quiescence probe probably depends on.
 3. Measure against two or three ordinary engines of known rating (not a weakened Stockfish)
    so that the absolute figure and the gains stop depending on one unusual opponent.
+
+## Third round (28 November 2026)
+
+Same runner and SPRT as the second round, with three differences:
+
+- Bounds [0, 10] and a cap of 3,000 games, at 1 s + 0.02 s, Hash=16.
+- The runner now takes `--min-memory 6`: no new game starts while less than 6 GB is free.
+  Games already running carry on. The machine was shared with other heavy jobs all day.
+- The baseline is the engine as the second round left it (search and evaluation as of f9a1868).
+- From d7351e4 the runner gives an engine a minute to start, not ten seconds, and prints
+  faults as they happen. Stockfish restarting after a fault missed the old limit, and the
+  crash lost a first rating run, which is not counted below.
+
+| #   | Idea                                                                                 | Games | Elo, 95% interval | SPRT [0, 10]            | Verdict  |
+| --- | ------------------------------------------------------------------------------------ | ----: | ----------------- | ----------------------- | -------- |
+| 1   | Transposition table in buckets of five entries (64 bytes), replaced by depth and age |  1342 | −9, −22 to +4     | H0 accepted (LLR −3.01) | not kept |
+
+Notes:
+
+- Row 1 lost three games on time, all three by the new version; the old one lost none.
+  Counted as draws instead, they leave the score at 48.8%, still below even.
+
+### Absolute strength, 28 November
+
+Method as in "Absolute strength" above: Stockfish 19 limited by `UCI_Elo`, 10 s + 0.1 s a
+game, one thread and 64 MB hash each, four games at a time, no faults. Stockfish is the
+official sf_19 release binary (x86-64 universal, SHA-256 checked against the release), since
+the system package had been removed. Seeds 3 and 2, as in the first round at these levels.
+
+| Engine   | Stockfish `UCI_Elo` | Games | Result (this engine) | Score | Elo difference, 95% interval | Implied rating |
+| -------- | ------------------: | ----: | -------------------- | ----: | ---------------------------- | -------------: |
+| baseline |                2750 |   120 | +60 =15 −45          | 56.2% | +44, −17 to +108             |           2794 |
+| baseline |                2850 |   120 | +47 =22 −51          | 48.3% | −12, −59 to +36              |           2838 |
+
+**Baseline: about 2820 on Stockfish's `UCI_Elo` scale at 10 s + 0.1 s, 95% interval 2784 to
+2860, from 240 games.** That is the two implied ratings weighted by their precision
+(standard error 19). It agrees with the second round's 2795. Every caveat in "Absolute
+strength" above still applies.
