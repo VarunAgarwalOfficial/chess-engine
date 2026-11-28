@@ -3,7 +3,7 @@
 //!
 //!   match --engine1 CMD --engine2 CMD [--options1 "Name=value ..."]
 //!         [--options2 "..."] [--games 200] [--tc 1+0.01] [--concurrency 4]
-//!         [--seed 1] [--sprt "0 20"]
+//!         [--seed 1] [--sprt "0 20"] [--min-memory 0]
 //!
 //! With `--sprt "elo0 elo1"` the match is a sequential probability ratio
 //! test of "engine 1 is elo1 stronger" against "it is elo0 stronger", with
@@ -18,6 +18,10 @@
 //! when both engines agree for several moves that it is won or dead level.
 //! A crash, an illegal move or a lost clock is a loss and is counted as a
 //! fault: any fault means the result should not be trusted.
+//!
+//! With `--min-memory GB`, no new game starts while less than that much
+//! memory is available (Linux only). Games already running carry on, so
+//! waiting never costs a game on time.
 
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, ChildStdin, Command, Stdio};
@@ -281,6 +285,26 @@ fn finished_pairs(results: &[[Option<f64>; 2]]) -> Vec<f64> {
     results.iter().filter_map(|p| Some((p[0]? + p[1]?) / 2.0)).collect()
 }
 
+/// Available memory in GB, from /proc/meminfo; None where there is none.
+fn available_memory() -> Option<f64> {
+    let text = std::fs::read_to_string("/proc/meminfo").ok()?;
+    let line = text.lines().find_map(|l| l.strip_prefix("MemAvailable:"))?;
+    let kib: f64 = line.split_whitespace().next()?.parse().ok()?;
+    Some(kib / (1024.0 * 1024.0))
+}
+
+/// Blocks while available memory is under `minimum` GB.
+fn wait_for_memory(minimum: f64) {
+    let mut said = false;
+    while let Some(free) = available_memory().filter(|&free| free < minimum) {
+        if !said {
+            eprintln!("waiting: {free:.1} GB available, below {minimum} GB");
+            said = true;
+        }
+        thread::sleep(Duration::from_secs(10));
+    }
+}
+
 fn parse_options(text: &str) -> Vec<(String, String)> {
     text.split_whitespace()
         .filter_map(|pair| pair.split_once('='))
@@ -303,6 +327,7 @@ fn main() {
     let games: usize = value("--games").and_then(|v| v.parse().ok()).unwrap_or(200);
     let concurrency: usize = value("--concurrency").and_then(|v| v.parse().ok()).unwrap_or(4).clamp(1, 4);
     let seed: u64 = value("--seed").and_then(|v| v.parse().ok()).unwrap_or(1).max(1);
+    let min_memory: f64 = value("--min-memory").and_then(|v| v.parse().ok()).unwrap_or(0.0);
     let tc = value("--tc").unwrap_or("1+0.01".into());
     let sprt: Option<(f64, f64)> = value("--sprt").map(|v| {
         let mut parts = v.split_whitespace().map(|x| x.parse::<f64>().expect("--sprt \"elo0 elo1\""));
@@ -327,6 +352,7 @@ fn main() {
             thread::spawn(move || {
                 let mut engines = [Engine::start(&specs[0]), Engine::start(&specs[1])];
                 loop {
+                    wait_for_memory(min_memory);
                     let game = {
                         let mut next = next.lock().unwrap();
                         *next += 1;
