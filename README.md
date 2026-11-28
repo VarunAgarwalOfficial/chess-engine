@@ -2,8 +2,8 @@
 
 A chess engine in Rust with alpha-beta search and UCI, and a browser board that runs it as WebAssembly.
 
-**About 2800** on Stockfish's strength-limited `UCI_Elo` scale, at 10 s + 0.1 s a game (95%
-interval 2750 to 2845, from 180 games). `STRENGTH.md` says how it was measured and what the
+**About 2820** on Stockfish's strength-limited `UCI_Elo` scale, at 10 s + 0.1 s a game (95%
+interval 2784 to 2860, from 240 games). `STRENGTH.md` says how it was measured and what the
 number does and does not mean.
 
 ![The board page in the browser: a game against the engine at level 5 of 8](docs/screenshot.png)
