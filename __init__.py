@@ -1,5 +1,6 @@
 import pygame
 import sys
+from pathlib import Path
 from Game import Board
 
 
@@ -37,11 +38,12 @@ IMAGES = {
 
 CLOCK = pygame.time.Clock()
 
-#loading images once
+#loading images once, from beside this file
+IMAGE_DIR = Path(__file__).parent / "images"
 pieces = ["rook", "knight", "bishop",  "king", "pawn" , "queen"]
 for piece in pieces:
-    IMAGES["black"][piece] = pygame.image.load("images/black/" + piece + ".png")
-    IMAGES["white"][piece] = pygame.image.load("images/white/" + piece + ".png")
+    IMAGES["black"][piece] = pygame.image.load(IMAGE_DIR / "black" / (piece + ".png"))
+    IMAGES["white"][piece] = pygame.image.load(IMAGE_DIR / "white" / (piece + ".png"))
 
 
 

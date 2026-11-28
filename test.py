@@ -1,27 +1,30 @@
+"""Counts every line of play from the start position (perft) and checks
+the totals against the published ones. Run with: python -m unittest test"""
+
+import unittest
+
 from Game import Board
-import copy
-total = 0
-board = Board()
 
 
-def temp(b , depth):
+def perft(board, depth):
+    if depth == 0:
+        return 1
     total = 0
-    if depth == 6:
-        
-        for i in range(8):
-            for j in range(8):
-                total += len(b.get_legal_moves((i,j))) 
-        return total
-    
-
-    for i in range(8):
-        for j in range(8):
-            for move in b.get_legal_moves((i,j)):
-                b.move((i,j), move)
-                total += temp(b, depth+1)
-                b.undo()
-    if (depth == 1):
-        print(total)
+    for row in range(8):
+        for col in range(8):
+            for move in board.get_legal_moves((row, col)):
+                board.move((row, col), move)
+                total += perft(board, depth - 1)
+                board.undo()
     return total
 
-print(temp(board, 0))
+
+class TestMoves(unittest.TestCase):
+    def test_perft_from_the_start(self):
+        board = Board()
+        for depth, expected in [(1, 20), (2, 400), (3, 8902)]:
+            self.assertEqual(perft(board, depth), expected)
+
+
+if __name__ == "__main__":
+    unittest.main()

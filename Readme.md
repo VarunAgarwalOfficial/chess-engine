@@ -1,60 +1,44 @@
-# Chess Game with Pygame
+# Chess in Pygame (2021 to 2024)
 
-This is a simple chess game implemented in Python using the Pygame library. I created this project in 2021 as a learning exercise to explore Pygame and enhance my Python programming skills.
+A two-player chess board in Pygame, kept here as history. The Rust engine
+is on `main`.
 
-## Features
+![The board with a pawn selected and its moves shown](screenshots/1.png)
 
-- Classic chess gameplay with a graphical user interface.
-- Player vs. Player mode for two human players.
-- Basic chess rules implemented, including check and checkmate detection.
-- Visual representation of valid moves when a piece is selected.
-
-## Requirements
-
-Make sure you have Python and Pygame installed:
+## Run it
 
 ```bash
-pip install pygame
+python -m venv .venv
+.venv/bin/pip install -r requirements.txt
+.venv/bin/python __init__.py
 ```
 
-## How to Play
+Click a piece, then a highlighted square. Press Z to take a move back.
+Tested on Python 3.14 with pygame-ce 2.5.
 
-1. Clone this repository:
-
-```
-git clone https://github.com/VarunAgarwalOfficial/Chess
-```
-
-
-2. Navigate to the project directory:
+## Test
 
 ```bash
-cd chess-pygame
+.venv/bin/python -m unittest test
 ```
 
+The move counts from the start position match the published ones to
+depth 4 (197,281).
 
-3. Run the game:
+## Known gaps
 
-```bash
-python __init__.py
-```
+- A king that moves keeps its castling rights (a typo: `alowed`).
+- Moving a rook clears the castling right on the other wing, and
+  capturing a rook clears none.
+- Castling is refused when the rook's square, or b1 or b8, is attacked.
+- After castling, check is tested on the king's old square.
+- Pawns promote to a queen only.
+- A pawn that moved two squares stays open to en passant for the rest of
+  the game.
+- `ai.py` was started and never finished.
 
+## History
 
-4. Enjoy playing chess!
-
-## Controls
-
-- Click on a piece to select it.
-- Click on a highlighted square to move the selected piece.
-
-## Screenshots
-
-![Chess Game Screenshot](screenshots/1.png)
-![Support for complecarted moves like castling and en-peasant](screenshots/2.png)
-
-
-## Acknowledgements
-
-This project was inspired by my desire to learn Pygame and improve my Python programming skills. Special thanks to the Pygame community for their valuable resources and tutorials.
-
-Feel free to explore, modify, and share this code. Happy coding!
+- 28 August 2021: the first version, one file.
+- February 2022: two rewrites from a laptop copy, in `laptop-2022/`.
+- January 2024: the `Game` package, written in early 2022, committed.
