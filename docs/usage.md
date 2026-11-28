@@ -53,7 +53,16 @@ Counting positions and timing the search from the command line:
 npm run perft -- 5
 npm run perft -- 4 "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1"
 engine/target/release/uci bench 14
+engine/target/release/uci explain 8 "<fen>"
 ```
+
+`uci explain` searches every legal move on its own and prints each one's score and expected line,
+best first, then the opponent's threat if there is one. The page gets the same from
+`engine.explain(fen, moves, depth)` in `web/engine.js`.
+
+`npm run perft:suite` builds the `perft` runner and checks the engine against every position in
+`engine/tests/perft.epd`. The runner works with any UCI engine that answers `go perft`:
+`engine/target/release/perft <engine> [--max-nodes N]`.
 
 Playing two UCI engines against each other, with an Elo difference and error bars:
 

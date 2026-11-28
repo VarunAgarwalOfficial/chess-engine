@@ -15,6 +15,7 @@ number does and does not mean.
 ```
 cargo build --release --manifest-path engine/Cargo.toml
 engine/target/release/uci
+engine/target/release/uci explain 8   # each move's score and line, and the threat
 ```
 
 ## Build and test
@@ -25,6 +26,7 @@ You need Node 22 or newer and Rust (stable).
 npm install     # lint and format tools only
 npm start       # the page at http://localhost:8000/
 npm test        # Rust tests and the page test
+npm run perft:suite   # the move generator against engine/tests/perft.epd
 make lint       # clippy, eslint, rustfmt and prettier
 ```
 
