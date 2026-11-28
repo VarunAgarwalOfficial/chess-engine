@@ -80,13 +80,15 @@ impl Engine {
             }
         });
         let mut engine = Engine { child, input, lines };
+        // Generous, for a large engine loading its network on a busy machine.
+        let start_limit = Duration::from_secs(60);
         engine.send("uci");
-        engine.wait_for("uciok", Duration::from_secs(10));
+        engine.wait_for("uciok", start_limit);
         for (name, value) in &spec.options {
             engine.send(&format!("setoption name {name} value {value}"));
         }
         engine.send("isready");
-        engine.wait_for("readyok", Duration::from_secs(10)).expect("engine did not start");
+        engine.wait_for("readyok", start_limit).expect("engine did not start");
         engine
     }
 
@@ -381,7 +383,9 @@ fn main() {
                     *game_seconds.lock().unwrap() += played.seconds;
                     if let Some(fault) = played.fault {
                         let culprit = if (played.white_score == 0.0) == first_is_white { 1 } else { 2 };
-                        faults.lock().unwrap().push(format!("game {game}, engine {culprit}: {fault}"));
+                        let fault = format!("game {game}, engine {culprit}: {fault}");
+                        eprintln!("fault: {fault}");
+                        faults.lock().unwrap().push(fault);
                         // Start afresh after a fault rather than trust the processes.
                         engines = [Engine::start(&specs[0]), Engine::start(&specs[1])];
                     }
