@@ -346,7 +346,7 @@ matches, 8.5 minutes of data generation, about 2 minutes of tuning and training,
 
 ## Third round (28 November 2026)
 
-Same runner and SPRT as the second round, with three differences:
+Same runner and SPRT as the second round, with four differences:
 
 - Bounds [0, 10] and a cap of 3,000 games, at 1 s + 0.02 s, Hash=16.
 - The runner now takes `--min-memory 6`: no new game starts while less than 6 GB is free.
