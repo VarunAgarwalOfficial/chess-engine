@@ -374,12 +374,21 @@ game, one thread and 64 MB hash each, four games at a time, no faults. Stockfish
 official sf_19 release binary (x86-64 universal, SHA-256 checked against the release), since
 the system package had been removed. Seeds 3 and 2, as in the first round at these levels.
 
-| Engine   | Stockfish `UCI_Elo` | Games | Result (this engine) | Score | Elo difference, 95% interval | Implied rating |
-| -------- | ------------------: | ----: | -------------------- | ----: | ---------------------------- | -------------: |
-| baseline |                2750 |   120 | +60 =15 −45          | 56.2% | +44, −17 to +108             |           2794 |
-| baseline |                2850 |   120 | +47 =22 −51          | 48.3% | −12, −59 to +36              |           2838 |
+| Engine     | Stockfish `UCI_Elo` | Games | Result (this engine) | Score | Elo difference, 95% interval | Implied rating |
+| ---------- | ------------------: | ----: | -------------------- | ----: | ---------------------------- | -------------: |
+| baseline   |                2750 |   120 | +60 =15 −45          | 56.2% | +44, −17 to +108             |           2794 |
+| baseline   |                2850 |   120 | +47 =22 −51          | 48.3% | −12, −59 to +36              |           2838 |
+| row 2 kept |                2750 |   120 | +58 =14 −48          | 54.2% | +29, −28 to +88              |           2779 |
+| row 2 kept |                2850 |   120 | +44 =15 −61          | 42.9% | −50, −109 to +7              |           2800 |
 
-**Baseline: about 2820 on Stockfish's `UCI_Elo` scale at 10 s + 0.1 s, 95% interval 2784 to
-2860, from 240 games.** That is the two implied ratings weighted by their precision
-(standard error 19). It agrees with the second round's 2795. Every caveat in "Absolute
+**Baseline: about 2820, 95% interval 2784 to 2860, from 240 games.** With row 2 kept: **about
+2790, 95% interval 2748 to 2831, from 240 games.** Each is that engine's two implied ratings
+weighted by their precision (standard errors 19 and 21), on Stockfish's `UCI_Elo` scale at
+10 s + 0.1 s. The same seeds were used for both engines.
+
+Row 2 passed its SPRT in self-play at 1 s + 0.02 s (+36), but these matches do not confirm a
+gain: the difference is −32, 95% interval −88 to +23, so neither a gain nor a loss is shown.
+Row 2 is kept because the SPRT is the rule. The machine carried other work during all four
+matches (other jobs, and builds of this engine during two of them), which affects both
+engines. The baseline agrees with the second round's 2795. Every caveat in "Absolute
 strength" above still applies.
