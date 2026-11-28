@@ -126,6 +126,7 @@ pub use program::{bench, run};
 mod program {
     use super::*;
     use crate::clock::now_ms;
+    use crate::explain::{explain, explain_text};
     use crate::movegen::perft;
     use crate::search::Searcher;
     use std::io::BufRead;
@@ -268,7 +269,8 @@ mod program {
         }
     }
 
-    /// `uci bench [depth]` and `uci perft <depth> [fen]` from the command line.
+    /// `uci bench [depth]`, `uci perft <depth> [fen]` and
+    /// `uci explain <depth> [fen]` from the command line.
     pub fn command_line(args: &[String]) -> bool {
         match args.first().map(String::as_str) {
             Some("bench") => {
@@ -292,6 +294,17 @@ mod program {
                             "perft {depth}: {nodes} positions, {time:.0} ms, {:.0} per second",
                             nodes as f64 * 1000.0 / time.max(1.0)
                         );
+                    }
+                    Err(message) => eprintln!("{message}"),
+                }
+            }
+            Some("explain") => {
+                let depth = args.get(1).and_then(|d| d.parse().ok()).unwrap_or(8);
+                let fen = if args.len() > 2 { args[2..].join(" ") } else { START_FEN.to_string() };
+                match Position::from_fen(&fen) {
+                    Ok(mut pos) => {
+                        let explanation = explain(&mut Searcher::new(DEFAULT_HASH), &mut pos, depth);
+                        print!("{}", explain_text(&mut pos, &explanation, 5));
                     }
                     Err(message) => eprintln!("{message}"),
                 }

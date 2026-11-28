@@ -72,3 +72,20 @@ pub fn move_to_san(pos: &mut Position, m: Move) -> String {
     pos.unmake(m);
     san
 }
+
+/// A line in SAN, cut short at the first move that is not legal where it
+/// stands. The position is left as it was.
+pub fn line_to_san(pos: &mut Position, line: &[Move]) -> Vec<String> {
+    let mut san = Vec::new();
+    for &m in line {
+        if !legal_moves(pos).as_slice().contains(&m) {
+            break;
+        }
+        san.push(move_to_san(pos, m));
+        pos.make(m);
+    }
+    for &m in line[..san.len()].iter().rev() {
+        pos.unmake(m);
+    }
+    san
+}

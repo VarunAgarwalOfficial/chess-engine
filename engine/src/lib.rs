@@ -7,6 +7,7 @@
 pub mod bitboard;
 pub mod clock;
 pub mod eval;
+pub mod explain;
 pub mod game;
 pub mod movegen;
 pub mod nnue;

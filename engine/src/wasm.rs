@@ -1,22 +1,23 @@
 //! The interface for the browser board, as a plain C ABI so that no
 //! binding generator is needed. Text goes both ways through one shared
 //! buffer: the page asks for room with `buffer`, writes its request there,
-//! calls `describe` or `go`, and reads the JSON reply from the address
-//! `reply` returns.
+//! calls `describe`, `go` or `explain`, and reads the JSON reply from the
+//! address `reply` returns.
 //!
 //! A request is a FEN on the first line and the moves played since, in
 //! coordinate notation, on the second; `go` reads UCI `go` parameters from
-//! a third. The page keeps no chess rules of its own.
+//! a third, and `explain` a depth ("depth 6"). The page keeps no chess rules of its own.
 
 #![allow(unsafe_code)] // only for the `no_mangle` exports; no unsafe blocks
 
 use std::sync::Mutex;
 
 use crate::bitboard::WHITE;
+use crate::explain::{self, Choice};
 use crate::game::{position_from_moves, status};
 use crate::movegen::legal_moves;
-use crate::notation::{move_to_san, move_to_uci};
-use crate::position::Position;
+use crate::notation::{line_to_san, move_to_san, move_to_uci};
+use crate::position::{Move, Position};
 use crate::search::{Limits, Searcher};
 use crate::uci::{mate_in, parse_go, search_limits};
 
@@ -83,21 +84,7 @@ pub fn go_json(searcher: &mut Searcher, pos: &mut Position, parameters: &str) ->
 fn search_json(searcher: &mut Searcher, pos: &mut Position, limits: &Limits) -> String {
     let outcome = searcher.search(pos, limits, &mut |_| {});
     let info = outcome.info;
-    // Walk the line to name each move, stopping at anything that is not
-    // legal where it stands, then put the position back.
-    let (mut pv, mut san, mut made) = (Vec::new(), Vec::new(), Vec::new());
-    for &m in &info.pv {
-        if !legal_moves(pos).as_slice().contains(&m) {
-            break;
-        }
-        pv.push(format!("\"{}\"", move_to_uci(m)));
-        san.push(format!("\"{}\"", move_to_san(pos, m)));
-        pos.make(m);
-        made.push(m);
-    }
-    for &m in made.iter().rev() {
-        pos.unmake(m);
-    }
+    let (pv, san) = line_json(pos, &info.pv);
     format!(
         "{{\"best\":{},\"depth\":{},\"score\":{},\"mate\":{},\"nodes\":{},\"time\":{},\"pv\":[{}],\"san\":[{}]}}",
         outcome.best.map_or("null".to_string(), |m| format!("\"{}\"", move_to_uci(m))),
@@ -106,9 +93,39 @@ fn search_json(searcher: &mut Searcher, pos: &mut Position, limits: &Limits) -> 
         mate_in(info.score).map_or("null".to_string(), |n| n.to_string()),
         info.nodes,
         info.time.round(),
-        pv.join(","),
-        san.join(",")
+        pv,
+        san
     )
+}
+
+/// A line as two JSON lists, coordinate and algebraic, as far as it is
+/// legal.
+fn line_json(pos: &mut Position, line: &[Move]) -> (String, String) {
+    let san = line_to_san(pos, line);
+    let uci: Vec<String> = line[..san.len()].iter().map(|&m| format!("\"{}\"", move_to_uci(m))).collect();
+    let san: Vec<String> = san.iter().map(|s| format!("\"{s}\"")).collect();
+    (uci.join(","), san.join(","))
+}
+
+/// Every legal move searched on its own, best first, each with its score
+/// (as in `go`) and expected line; and `threat`, the opponent's line if the
+/// side to move could pass, or null when there is no threat worth a pawn.
+/// See `explain` for how it is found.
+pub fn explain_json(searcher: &mut Searcher, pos: &mut Position, depth: i32) -> String {
+    let explanation = explain::explain(searcher, pos, depth);
+    let choice_json = |pos: &mut Position, choice: &Choice| {
+        let (pv, san) = line_json(pos, &choice.line);
+        let mate = mate_in(choice.score).map_or("null".to_string(), |n| n.to_string());
+        format!("{{\"score\":{},\"mate\":{mate},\"pv\":[{pv}],\"san\":[{san}]}}", choice.score)
+    };
+    let moves: Vec<String> = explanation.choices.iter().map(|c| choice_json(pos, c)).collect();
+    let threat = explanation.threat.as_ref().map_or("null".to_string(), |threat| {
+        pos.make_null();
+        let json = choice_json(pos, threat);
+        pos.unmake_null();
+        json
+    });
+    format!("{{\"depth\":{depth},\"moves\":[{}],\"threat\":{threat}}}", moves.join(","))
 }
 
 /// Makes room for a request of `length` bytes and returns where to write it.
@@ -136,5 +153,18 @@ pub extern "C" fn go() -> usize {
     respond(request().map(|(mut pos, parameters)| {
         let mut searcher = SEARCHER.lock().expect("searcher lock");
         go_json(searcher.get_or_insert_with(|| Searcher::new(HASH)), &mut pos, &parameters)
+    }))
+}
+
+#[no_mangle]
+pub extern "C" fn explain() -> usize {
+    respond(request().map(|(mut pos, parameters)| {
+        let tokens: Vec<&str> = parameters.split_whitespace().collect();
+        let depth = match tokens.as_slice() {
+            ["depth", n] => n.parse().unwrap_or(6),
+            _ => 6,
+        };
+        let mut searcher = SEARCHER.lock().expect("searcher lock");
+        explain_json(searcher.get_or_insert_with(|| Searcher::new(HASH)), &mut pos, depth)
     }))
 }

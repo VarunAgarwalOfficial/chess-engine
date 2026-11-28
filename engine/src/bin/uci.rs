@@ -1,5 +1,6 @@
 //! The engine as a program: a UCI engine on standard input and output, or
-//! `uci bench [depth]` and `uci perft <depth> [fen]` from the command line.
+//! `uci bench [depth]`, `uci perft <depth> [fen]` and `uci explain <depth>
+//! [fen]` from the command line.
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
